@@ -1,0 +1,215 @@
+# AI Development Impact Analysis Report
+
+**Generated:** 2025-08-20 18:59:01  
+**Analysis Type:** Single Scenario  
+**Scenarios:** moderate_enterprise
+
+---
+
+## Scenario Analysis: moderate_enterprise
+
+### Executive Summary
+
+| Metric | Value | Trend |
+|--------|-------|-------|
+| **Team Size** | 50 developers | |
+| **Analysis Timeframe** | 36 months | |
+| **Peak Adoption Rate** | 84.5% | `▁▃▆▇▇▇▇▇▇▇▇▇▇▇▆▆▆▆▆▆▆▅▅▅` |
+| **Final Efficiency** | 90.0% | `▁▃▅▆▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇█` |
+
+### Financial Performance
+
+| Metric | Value | Monthly Trend |
+|--------|-------|---------------|
+| **Total Investment (3 years)** | $2,856,505 | `█▁▂▁▁▂▂▂▂▂▂▂▅▂▂▂▂▂▂▂▂▁▁▁` |
+| **Total Value Created (3 years)** | $13,936,769 | `▁▁▁▁▁▂▂▂▃▃▃▄▄▄▅▅▅▆▆▆▇▇▇█` |
+| **Net Present Value (NPV)** | $9,560,070 | |
+| **Return on Investment (ROI)** | 387.9% | |
+| **Breakeven Point** | Month 2 | |
+
+### Monthly Value Creation
+
+Monthly value generation over time:
+
+```
+▁▂▄▅▆▇▇▇▇█▇▇▇▇▇▇▇▇▇▇▇▇▆▆
+```
+
+| Metric | Value |
+|--------|-------|
+| **Peak Monthly Value** | $478,484 |
+| **Average Monthly Value** | $387,132 |
+| **Final Month Value** | $333,283 |
+
+### Adoption Dynamics
+
+The adoption curve shows how developers embrace AI tools over time:
+
+```
+Adoption Rate: ▁▃▆▇▇▇▇▇▇▇▇▇▇▇▆▆▆▆▆▆▆▅▅▅
+Efficiency:    ▁▃▅▆▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇█
+```
+
+| Phase | Adoption Rate | Efficiency | Effective Impact |
+|-------|---------------|------------|------------------|
+| **Month 1** | 10.0% | 40.0% | 4.0% |
+| **Month 6** | 80.4% | 83.2% | 66.9% |
+| **Month 12** | 83.1% | 89.4% | 74.2% |
+| **Peak** | 84.5% | 90.0% | 74.7% |
+
+### Cost Structure Analysis
+
+| Cost Component | Monthly Average | Total (3 years) | Per Developer |
+|----------------|-----------------|-----------------|---------------|
+| **License Costs** | $1,071 | $38,552 | $29,478/year |
+| **Training & Setup** | $1,624 | $58,466 | |
+| **Total Costs** | $79,347 | $2,856,505 | |
+
+### Per Developer Metrics
+
+| Metric | Value | Annual Comparison |
+|--------|-------|-------------------|
+| **Annual Cost per Developer** | $29,478 | vs $182,000 FLC |
+| **Annual Value per Developer** | $79,988 | 43.9% of FLC |
+| **Net Value per Developer** | $50,510 | ROI: 171% |
+
+### Value Breakdown
+
+The total annual value of $3,999,399 comes from:
+
+| Value Source | Annual Impact | % of Total | Per Developer |
+|-------------|---------------|------------|---------------|
+| **Time-to-Market Acceleration** | $1,642,232 | 41.1% | $32,845 |
+| **Quality Improvements** | $550,691 | 13.8% | $11,014 |
+| **Capacity Reallocation** | $1,092,842 | 27.3% | $21,857 |
+| **Strategic Initiatives** | $713,633 | 17.8% | $14,273 |
+
+### Opportunity Cost Analysis
+
+| Metric | Annual Value | Monthly Impact |
+|--------|-------------|----------------|
+| **Current Inefficiency Cost** | $16,097,000 | $1,341,417 |
+| **AI Tool Value Capture** | $3,999,399 | $333,283 |
+| **Net Efficiency Gain** | $3,047,231 | $253,936 |
+| **Efficiency Improvement** | 24.8% | |
+
+### Monthly Timeline
+
+First 12 months progression:
+
+| Month | Adoption | Efficiency | Monthly Value | Cumulative Value | Monthly Cost | Net Flow |
+|-------|----------|------------|---------------|------------------|--------------|----------|
+| M1 | 10.0% | 40.0% | $23,777 | $23,777 | $166,958 | $-143,182 |
+| M2 | 38.4% | 56.5% | $131,203 | $154,980 | $59,651 | $71,552 |
+| M3 | 56.8% | 67.5% | $235,862 | $390,842 | $77,483 | $158,379 |
+| M4 | 68.6% | 74.9% | $320,257 | $711,099 | $66,240 | $254,017 |
+| M5 | 75.9% | 79.9% | $382,002 | $1,093,101 | $74,555 | $307,448 |
+| M6 | 80.4% | 83.2% | $424,182 | $1,517,284 | $78,820 | $345,362 |
+| M7 | 82.9% | 85.5% | $451,219 | $1,968,502 | $80,258 | $370,961 |
+| M8 | 84.1% | 87.0% | $467,225 | $2,435,728 | $82,601 | $384,625 |
+| M9 | 84.5% | 88.0% | $475,498 | $2,911,225 | $83,855 | $391,643 |
+| M10 | 84.3% | 88.6% | $478,484 | $3,389,709 | $84,404 | $394,080 |
+| M11 | 83.8% | 89.1% | $477,926 | $3,867,635 | $84,233 | $393,692 |
+| M12 | 83.1% | 89.4% | $475,029 | $4,342,664 | $83,803 | $391,226 |
+
+### Key Insights & Recommendations
+
+#### 📈 **Performance Summary**
+- **Investment Recovery**: 🟢 Strong positive ROI with breakeven in 2 months
+- **Adoption Success**: 🟢 High adoption rate of 84.5% achieved
+- **Value Creation**: $79,988 annual value per developer
+- **Cost Efficiency**: $29,478 annual cost per developer
+
+#### 💡 **Strategic Recommendations**
+- **Primary Value Driver**: Time-to-Market acceleration provides the highest value
+- **ROI Timeframe**: ✅ Quick payback makes this a low-risk investment
+- **Adoption Focus**: 🎯 Focus on maintaining high adoption rates
+
+
+---
+
+## Report Information
+
+- **Generated by:** AI Impact Analysis Tool
+- **Report saved:** 2025-08-20 18:59:01
+- **Format:** Markdown
+
+### Reproducibility
+
+**Command used:**
+```bash
+python run_analysis.py moderate_enterprise
+```
+
+**Data sources:**
+- Scenario configuration: `src/scenarios/scenarios.yaml` (at time of generation)
+- Analysis engine: AI Impact Model v1.0
+- Date generated: 2025-08-20 18:59:01
+
+**To reproduce these exact results:**
+
+1. Use the command above, OR
+2. Create a temporary scenario file with the configuration below and run:
+   ```bash
+   python main.py --scenario <scenario_name>
+   ```
+
+**Complete scenario configuration used:**
+
+**moderate_enterprise:**
+```yaml
+adoption:
+  scenario: grassroots
+baseline:
+  profile: enterprise
+costs:
+  scenario: enterprise
+description: 50-person enterprise with balanced adoption approach
+impact:
+  scenario: moderate
+name: Moderate Enterprise
+timeframe_months: 36
+```
+
+**Resolved parameter values used in calculations:**
+
+```yaml
+analysis_parameters:
+  discount_rate_annual: 0.12
+  timeframe_months: 36
+baseline_metrics:
+  avg_bug_fix_hours: 24
+  avg_feature_cycle_days: 30
+  avg_incident_cost: 15000
+  defect_escape_rate: 3.0
+  junior_flc: 140000
+  junior_ratio: 0.3
+  maintenance_percentage: 0.35
+  mid_flc: 180000
+  mid_ratio: 0.5
+  new_feature_percentage: 0.4
+  production_incidents_per_month: 5
+  rework_percentage: 0.2
+  senior_flc: 250000
+  senior_ratio: 0.2
+  team_size: 50
+  tech_debt_percentage: 0.1
+  weighted_avg_flc: 182000.0
+final_metrics:
+  breakeven_month: 2
+  npv: 9560070.124960652
+  peak_adoption: 0.8447857870220122
+  roi_percent: 387.89591216872265
+  total_cost_3y: 2856504.6148894215
+  total_value_3y: 13936769.2469564
+impact_breakdown:
+  capacity_value: 1092842.3969088504
+  quality_value: 550691.1565375854
+  strategic_value: 713633.3747629833
+  time_value: 1642232.05650346
+  total_annual_value: 3999398.984712879
+  value_as_percent_of_cost: 43.94943939244922
+  value_per_developer: 79987.97969425758
+```
+
+**Note:** This embedded data ensures exact reproducibility even if scenario definitions change.
