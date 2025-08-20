@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Outputs (keep some, ignore others)
+*.png
+charts/
+charts_*/
+
+# Keep important outputs
+!requirements.txt
+!scenarios.yaml
+!*.py
+!README.md
+!ai_impact_analysis_*.txt
+!scaleup_analysis_*.txt
+!monte_carlo_metrics.csv
+
+# Temporary files
+debug_*.py
+test_*.py
+scenarios_old*.yaml
