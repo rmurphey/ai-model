@@ -157,7 +157,7 @@ def create_heatmap(matrix: List[List[float]], row_labels: List[str], col_labels:
 
 def create_sparkline(data: List[float], width: int = 20) -> str:
     """Create a sparkline using Unicode block characters"""
-    if not data:
+    if len(data) == 0:
         return ""
     
     blocks = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█']
