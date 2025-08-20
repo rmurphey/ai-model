@@ -36,26 +36,62 @@ class AIImpactModel:
             raise ConfigurationError(
                 f"Scenario configuration file not found: {scenario_file}",
                 config_file=scenario_file,
-                suggestion="Ensure the scenario file exists or check the path"
+                resolution_steps=[
+                    "Check if the file path is correct",
+                    "Ensure you're running from the project root directory",
+                    "Verify the file exists: ls -la src/scenarios/scenarios.yaml",
+                    "If missing, restore from version control or documentation"
+                ]
             )
         except yaml.YAMLError as e:
+            line_info = ""
+            if hasattr(e, 'problem_mark') and e.problem_mark:
+                line_info = f" (line {e.problem_mark.line + 1}, column {e.problem_mark.column + 1})"
+            
             raise ConfigurationError(
-                f"Invalid YAML format in scenario file: {e}",
+                f"Invalid YAML format in scenario file{line_info}: {e}",
                 config_file=scenario_file,
-                suggestion="Check YAML syntax and formatting"
+                resolution_steps=[
+                    "Check YAML syntax using an online YAML validator",
+                    f"Focus on line {e.problem_mark.line + 1} if specified" if hasattr(e, 'problem_mark') else "Review file structure",
+                    "Ensure proper indentation (use spaces, not tabs)",
+                    "Verify all string values are properly quoted",
+                    "Compare with working examples in the repository"
+                ]
+            )
+        except PermissionError:
+            raise ConfigurationError(
+                f"Permission denied accessing scenario file: {scenario_file}",
+                config_file=scenario_file,
+                resolution_steps=[
+                    f"Check file permissions: ls -la {scenario_file}",
+                    "Ensure you have read access to the file",
+                    "Verify the file is not locked by another process"
+                ]
             )
         except Exception as e:
             raise ConfigurationError(
                 f"Failed to load scenario file: {e}",
                 config_file=scenario_file,
-                suggestion="Check file permissions and content"
+                resolution_steps=[
+                    "Check file permissions and content",
+                    "Verify file encoding (should be UTF-8)",
+                    "Ensure file is not corrupted",
+                    "Try opening file manually to check readability"
+                ]
             )
         
         if not self.scenarios:
             raise ConfigurationError(
                 "Scenario file is empty or contains no valid scenarios",
                 config_file=scenario_file,
-                suggestion="Add at least one scenario configuration"
+                resolution_steps=[
+                    "Check if the YAML file loaded correctly",
+                    "Verify the file contains scenario definitions",
+                    "Ensure proper YAML structure with scenario names as keys",
+                    "Add at least one scenario configuration",
+                    "Compare with example scenarios from documentation"
+                ]
             )
         
         self.results = {}
@@ -66,10 +102,29 @@ class AIImpactModel:
             raise ScenarioError(
                 scenario_name=scenario_name,
                 issue="not found in configuration",
-                available_scenarios=list(self.scenarios.keys())
+                available_scenarios=list(self.scenarios.keys()),
+                config_file="src/scenarios/scenarios.yaml"
             )
         
-        return self.scenarios[scenario_name]
+        scenario = self.scenarios[scenario_name]
+        
+        # Validate scenario has required fields
+        required_fields = ['baseline', 'adoption', 'impact', 'costs', 'timeframe_months']
+        missing_fields = [field for field in required_fields if field not in scenario]
+        
+        if missing_fields:
+            raise ConfigurationError(
+                f"Scenario '{scenario_name}' is missing required fields: {', '.join(missing_fields)}",
+                config_file="src/scenarios/scenarios.yaml",
+                resolution_steps=[
+                    f"Add missing fields to scenario '{scenario_name}': {', '.join(missing_fields)}",
+                    "Check scenario structure against working examples",
+                    "Ensure all required fields are properly defined",
+                    "Validate field values are in correct format"
+                ]
+            )
+        
+        return scenario
     
     def run_scenario(self, scenario_name: str) -> Dict:
         """Run a complete scenario analysis"""
