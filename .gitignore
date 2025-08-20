@@ -31,5 +31,5 @@ charts_*/
 
 # Temporary files
 debug_*.py
-test_*.py
+temp_test_*.py
 scenarios_old*.yaml
