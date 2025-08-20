@@ -7,6 +7,9 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 import numpy as np
 from scipy.stats import beta
+from ..utils.math_helpers import safe_divide, validate_positive, validate_ratio, validate_ratios_sum_to_one
+from ..utils.exceptions import CalculationError, ValidationError
+from ..config.constants import RATIO_SUM_TOLERANCE, MAX_ADOPTION_RATE
 
 @dataclass
 class AdoptionParameters:
@@ -40,10 +43,49 @@ class AdoptionParameters:
     senior_adoption_multiplier: float
     
     def __post_init__(self):
-        """Validate adoption segments sum to ~1.0"""
-        total = (self.initial_adopters + self.early_adopters + 
-                self.early_majority + self.late_majority + self.laggards)
-        assert abs(total - 1.0) < 0.01, f"Adoption segments must sum to 1.0, got {total}"
+        """Validate all adoption parameters"""
+        # Validate adoption segment ratios
+        validate_ratio(self.initial_adopters, "initial_adopters")
+        validate_ratio(self.early_adopters, "early_adopters")
+        validate_ratio(self.early_majority, "early_majority")
+        validate_ratio(self.late_majority, "late_majority")
+        validate_ratio(self.laggards, "laggards")
+        
+        # Validate adoption segments sum to 1.0
+        adoption_segments = {
+            "initial_adopters": self.initial_adopters,
+            "early_adopters": self.early_adopters,
+            "early_majority": self.early_majority,
+            "late_majority": self.late_majority,
+            "laggards": self.laggards
+        }
+        validate_ratios_sum_to_one(adoption_segments, RATIO_SUM_TOLERANCE, "adoption segments")
+        
+        # Validate factor ratios
+        validate_ratio(self.training_effectiveness, "training_effectiveness")
+        validate_ratio(self.peer_influence, "peer_influence")
+        validate_ratio(self.management_mandate, "management_mandate")
+        validate_ratio(self.initial_resistance, "initial_resistance")
+        validate_ratio(self.initial_efficiency, "initial_efficiency")
+        validate_ratio(self.plateau_efficiency, "plateau_efficiency")
+        
+        # Validate rates (can be higher than 1.0 for some)
+        validate_positive(self.dropout_rate_month, "dropout_rate_month")
+        validate_positive(self.re_engagement_rate, "re_engagement_rate")
+        validate_positive(self.learning_rate, "learning_rate")
+        
+        # Validate multipliers
+        validate_positive(self.junior_adoption_multiplier, "junior_adoption_multiplier")
+        validate_positive(self.mid_adoption_multiplier, "mid_adoption_multiplier")
+        validate_positive(self.senior_adoption_multiplier, "senior_adoption_multiplier")
+        
+        # Logical validations
+        if self.initial_efficiency >= self.plateau_efficiency:
+            raise ValidationError(
+                field="efficiency parameters",
+                issue="initial_efficiency must be less than plateau_efficiency",
+                suggestion="Ensure initial_efficiency < plateau_efficiency for realistic learning curves"
+            )
 
 
 class AdoptionModel:
@@ -97,7 +139,12 @@ class AdoptionModel:
                 dropouts[month] = month_dropouts
                 
                 # Some dropouts re-engage
-                re_engaged = dropouts[:month].sum() * self.params.re_engagement_rate / month
+                re_engaged = dropouts[:month].sum() * safe_divide(
+                    self.params.re_engagement_rate,
+                    month,
+                    default=0.0,
+                    context="re-engagement rate calculation"
+                )
                 
                 active_users[month] = active_users[month-1] + weighted_adopters - month_dropouts + re_engaged
             else:
@@ -144,8 +191,8 @@ class AdoptionModel:
         segment_curves = {}
         
         for segment, multiplier in segments.items():
-            # Apply multiplier with ceiling at 95%
-            segment_curves[segment] = np.minimum(base_adoption * multiplier, 0.95)
+            # Apply multiplier with ceiling at max adoption rate
+            segment_curves[segment] = np.minimum(base_adoption * multiplier, MAX_ADOPTION_RATE)
         
         return segment_curves
     

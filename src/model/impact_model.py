@@ -7,6 +7,14 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple
 import numpy as np
 from .baseline import BaselineMetrics
+from ..utils.math_helpers import safe_divide, validate_positive, validate_ratio
+from ..utils.exceptions import CalculationError, ValidationError
+from ..config.constants import (
+    WORKING_DAYS_PER_YEAR, WORKING_HOURS_PER_YEAR, DEFAULT_TURNOVER_RATE,
+    TECH_DEBT_MULTIPLIER, INNOVATION_CAPACITY_PERCENTAGE, COMPETITIVE_VALUE_MULTIPLIER,
+    BUGS_PER_INCIDENT, HOURS_PER_DEFECT_FIX, KLOC_PER_TEAM_PER_YEAR, JUNIOR_EFFECTIVENESS_BOOST,
+    CONTEXT_SWITCHING_PRODUCTIVITY_LOSS, RETENTION_MULTIPLIER
+)
 
 @dataclass 
 class ImpactFactors:
@@ -38,6 +46,33 @@ class ImpactFactors:
     junior_multiplier: float            # Impact multiplier for juniors
     mid_multiplier: float               # Impact multiplier for mid-level
     senior_multiplier: float            # Impact multiplier for seniors
+    
+    def __post_init__(self):
+        """Validate all impact factors"""
+        # Validate reduction ratios (0-1)
+        validate_ratio(self.feature_cycle_reduction, "feature_cycle_reduction")
+        validate_ratio(self.bug_fix_reduction, "bug_fix_reduction")
+        validate_ratio(self.onboarding_reduction, "onboarding_reduction")
+        validate_ratio(self.pr_review_reduction, "pr_review_reduction")
+        validate_ratio(self.defect_reduction, "defect_reduction")
+        validate_ratio(self.incident_reduction, "incident_reduction")
+        validate_ratio(self.rework_reduction, "rework_reduction")
+        
+        # Validate capacity gains (can be negative, but reasonable bounds)
+        validate_ratio(self.feature_capacity_gain, "feature_capacity_gain", min_val=-0.5, max_val=0.5)
+        validate_ratio(self.tech_debt_capacity_gain, "tech_debt_capacity_gain", min_val=-0.5, max_val=0.5)
+        
+        # Validate effectiveness ratios (0-1)
+        validate_ratio(self.boilerplate_effectiveness, "boilerplate_effectiveness")
+        validate_ratio(self.test_generation_effectiveness, "test_generation_effectiveness")
+        validate_ratio(self.documentation_effectiveness, "documentation_effectiveness")
+        validate_ratio(self.code_review_effectiveness, "code_review_effectiveness")
+        validate_ratio(self.debugging_effectiveness, "debugging_effectiveness")
+        
+        # Validate multipliers (should be positive, typically 0.5-3.0)
+        validate_ratio(self.junior_multiplier, "junior_multiplier", min_val=0.1, max_val=5.0)
+        validate_ratio(self.mid_multiplier, "mid_multiplier", min_val=0.1, max_val=5.0)
+        validate_ratio(self.senior_multiplier, "senior_multiplier", min_val=0.1, max_val=5.0)
 
 
 @dataclass
@@ -56,7 +91,12 @@ class BusinessImpact:
             1 - self.factors.feature_cycle_reduction * self.adoption_rate
         )
         old_features_per_dev = self.baseline.feature_delivery_rate
-        new_features_per_dev = 260 / new_cycle_days * self.baseline.new_feature_percentage
+        new_features_per_dev = safe_divide(
+            WORKING_DAYS_PER_YEAR * self.baseline.new_feature_percentage,
+            new_cycle_days,
+            default=0.0,
+            context="new features per developer calculation"
+        )
         
         # Additional features delivered
         additional_features = (new_features_per_dev - old_features_per_dev) * self.baseline.team_size
@@ -67,13 +107,23 @@ class BusinessImpact:
         
         # Bug fix acceleration value (reduced downtime and customer impact)
         bug_fix_improvement = self.baseline.avg_bug_fix_hours * self.factors.bug_fix_reduction * self.adoption_rate
-        annual_bugs = self.baseline.production_incidents_per_month * 12 * 3  # Assume 3 bugs per incident
-        bug_fix_value = (bug_fix_improvement / 8) * (self.baseline.avg_incident_cost / 10) * annual_bugs
+        annual_bugs = self.baseline.production_incidents_per_month * 12 * BUGS_PER_INCIDENT
+        bug_fix_value = safe_divide(
+            bug_fix_improvement * self.baseline.avg_incident_cost * annual_bugs,
+            80,  # 8 hours * 10 (denominator factor)
+            default=0.0,
+            context="bug fix value calculation"
+        )
         
         # Onboarding acceleration (faster time to productivity)
         onboarding_improvement = self.baseline.onboarding_days * self.factors.onboarding_reduction * self.adoption_rate
-        annual_hires = self.baseline.team_size * 0.2  # 20% turnover assumption
-        onboarding_value = (onboarding_improvement / 260) * self.baseline.weighted_avg_flc * annual_hires
+        annual_hires = self.baseline.team_size * DEFAULT_TURNOVER_RATE
+        onboarding_value = safe_divide(
+            onboarding_improvement * self.baseline.weighted_avg_flc * annual_hires,
+            WORKING_DAYS_PER_YEAR,
+            default=0.0,
+            context="onboarding value calculation"
+        )
         
         return {
             "feature_acceleration_value": feature_value,
@@ -87,10 +137,15 @@ class BusinessImpact:
         
         # Reduced defects
         defect_reduction = self.baseline.defect_escape_rate * self.factors.defect_reduction * self.adoption_rate
-        # Assume each defect costs 10 hours to fix at weighted FLC
-        defect_cost_per_kloc = defect_reduction * 10 * (self.baseline.weighted_avg_flc / 2080)
-        # Assume team produces 100 KLOC per year
-        defect_value = defect_cost_per_kloc * 100
+        # Each defect costs hours to fix at weighted FLC
+        defect_cost_per_kloc = defect_reduction * HOURS_PER_DEFECT_FIX * safe_divide(
+            self.baseline.weighted_avg_flc,
+            WORKING_HOURS_PER_YEAR,
+            default=0.0,
+            context="defect cost per KLOC calculation"
+        )
+        # Team produces KLOC per year
+        defect_value = defect_cost_per_kloc * KLOC_PER_TEAM_PER_YEAR
         
         # Reduced incidents
         incident_reduction = self.baseline.production_incidents_per_month * self.factors.incident_reduction * self.adoption_rate
@@ -144,7 +199,12 @@ class BusinessImpact:
         
         # Innovation capacity (freed time for experimentation)
         innovation_hours = self.baseline.effective_capacity_hours * 0.1 * self.adoption_rate
-        innovation_value = (innovation_hours / 2080) * self.baseline.weighted_avg_flc * self.baseline.team_size
+        innovation_value = safe_divide(
+            innovation_hours * self.baseline.weighted_avg_flc * self.baseline.team_size,
+            2080,  # Working hours per year
+            default=0.0,
+            context="innovation value calculation"
+        )
         
         # Competitive advantage (ability to ship faster than competitors)
         # Model as option value - worth 10% of feature acceleration value
@@ -189,8 +249,18 @@ class BusinessImpact:
             "capacity_value": capacity_value["total_capacity_value"],
             "strategic_value": strategic_value["total_strategic_value"],
             "total_annual_value": total_value,
-            "value_per_developer": total_value / self.baseline.team_size,
-            "value_as_percent_of_cost": (total_value / self.baseline.total_team_cost) * 100
+            "value_per_developer": safe_divide(
+                total_value,
+                self.baseline.team_size,
+                default=0.0,
+                context="value per developer calculation"
+            ),
+            "value_as_percent_of_cost": safe_divide(
+                total_value * 100,
+                self.baseline.total_team_cost,
+                default=0.0,
+                context="value as percent of cost calculation"
+            )
         }
 
 
@@ -293,7 +363,12 @@ def calculate_task_specific_impact(
         effectiveness = task_effectiveness.get(task, 0.3)
         hours_on_task = baseline.effective_capacity_hours * percentage
         hours_saved = hours_on_task * effectiveness
-        time_savings[task] = hours_saved * (baseline.weighted_avg_flc / 2080)
+        time_savings[task] = hours_saved * safe_divide(
+            baseline.weighted_avg_flc,
+            WORKING_HOURS_PER_YEAR,
+            default=0.0,
+            context=f"time savings calculation for {task}"
+        )
     
     return {
         "weighted_effectiveness": total_effectiveness,

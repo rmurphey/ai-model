@@ -6,6 +6,12 @@ Establishes the "before AI" state to measure improvements against.
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 import numpy as np
+from ..utils.math_helpers import safe_divide, validate_positive, validate_ratio, validate_ratios_sum_to_one
+from ..utils.exceptions import CalculationError, ValidationError
+from ..config.constants import (
+    WORKING_DAYS_PER_YEAR, WORKING_HOURS_PER_YEAR, DEFAULT_TURNOVER_RATE,
+    CONTEXT_SWITCHING_PRODUCTIVITY_LOSS, RATIO_SUM_TOLERANCE
+)
 
 @dataclass
 class BaselineMetrics:
@@ -44,10 +50,46 @@ class BaselineMetrics:
     pr_rejection_rate: float         # % of PRs requiring major rework
     
     def __post_init__(self):
-        """Validate ratios sum to 1.0"""
-        assert abs(self.junior_ratio + self.mid_ratio + self.senior_ratio - 1.0) < 0.01
-        assert abs(self.new_feature_percentage + self.maintenance_percentage + 
-                  self.tech_debt_percentage + self.meetings_percentage - 1.0) < 0.01
+        """Validate all input parameters"""
+        # Validate positive values
+        validate_positive(self.team_size, "team_size")
+        validate_positive(self.junior_flc, "junior_flc")
+        validate_positive(self.mid_flc, "mid_flc")
+        validate_positive(self.senior_flc, "senior_flc")
+        validate_positive(self.avg_feature_cycle_days, "avg_feature_cycle_days")
+        validate_positive(self.avg_bug_fix_hours, "avg_bug_fix_hours")
+        validate_positive(self.onboarding_days, "onboarding_days")
+        validate_positive(self.defect_escape_rate, "defect_escape_rate", allow_zero=True)
+        validate_positive(self.production_incidents_per_month, "production_incidents_per_month", allow_zero=True)
+        validate_positive(self.avg_incident_cost, "avg_incident_cost", allow_zero=True)
+        validate_positive(self.avg_pr_review_hours, "avg_pr_review_hours", allow_zero=True)
+        
+        # Validate ratios
+        validate_ratio(self.junior_ratio, "junior_ratio")
+        validate_ratio(self.mid_ratio, "mid_ratio")
+        validate_ratio(self.senior_ratio, "senior_ratio")
+        validate_ratio(self.rework_percentage, "rework_percentage")
+        validate_ratio(self.new_feature_percentage, "new_feature_percentage")
+        validate_ratio(self.maintenance_percentage, "maintenance_percentage")
+        validate_ratio(self.tech_debt_percentage, "tech_debt_percentage")
+        validate_ratio(self.meetings_percentage, "meetings_percentage")
+        validate_ratio(self.pr_rejection_rate, "pr_rejection_rate")
+        
+        # Validate ratio groups sum to 1.0
+        team_ratios = {
+            "junior_ratio": self.junior_ratio,
+            "mid_ratio": self.mid_ratio,
+            "senior_ratio": self.senior_ratio
+        }
+        validate_ratios_sum_to_one(team_ratios, RATIO_SUM_TOLERANCE, "team composition")
+        
+        capacity_ratios = {
+            "new_feature_percentage": self.new_feature_percentage,
+            "maintenance_percentage": self.maintenance_percentage,
+            "tech_debt_percentage": self.tech_debt_percentage,
+            "meetings_percentage": self.meetings_percentage
+        }
+        validate_ratios_sum_to_one(capacity_ratios, RATIO_SUM_TOLERANCE, "capacity allocation")
     
     @property
     def weighted_avg_flc(self) -> float:
@@ -64,15 +106,20 @@ class BaselineMetrics:
     @property
     def effective_capacity_hours(self) -> float:
         """Effective annual coding hours per developer"""
-        # Assume 2080 work hours/year, minus meetings
-        return 2080 * (1 - self.meetings_percentage)
+        # Assume working hours per year, minus meetings
+        return WORKING_HOURS_PER_YEAR * (1 - self.meetings_percentage)
     
     @property
     def feature_delivery_rate(self) -> float:
         """Features delivered per developer per year"""
         # Calculate based on cycle time and capacity
-        working_days = 260  # Typical working days per year
-        features_per_dev = working_days / self.avg_feature_cycle_days
+        working_days = WORKING_DAYS_PER_YEAR
+        features_per_dev = safe_divide(
+            working_days,
+            self.avg_feature_cycle_days,
+            default=0.0,
+            context="features per developer calculation"
+        )
         # Adjust for time actually spent on features
         return features_per_dev * self.new_feature_percentage
     
@@ -89,13 +136,27 @@ class BaselineMetrics:
     
     def calculate_baseline_efficiency(self) -> Dict[str, float]:
         """Calculate baseline efficiency metrics"""
+        total_features = self.team_size * self.feature_delivery_rate
         return {
-            "cost_per_feature": self.total_team_cost / (self.team_size * self.feature_delivery_rate),
-            "incidents_per_feature": (self.production_incidents_per_month * 12) / 
-                                    (self.team_size * self.feature_delivery_rate),
+            "cost_per_feature": safe_divide(
+                self.total_team_cost,
+                total_features,
+                default=0.0,
+                context="cost per feature calculation"
+            ),
+            "incidents_per_feature": safe_divide(
+                self.production_incidents_per_month * 12,
+                total_features,
+                default=0.0,
+                context="incidents per feature calculation"
+            ),
             "effective_utilization": self.new_feature_percentage,
-            "quality_cost_ratio": (self.annual_incident_cost + self.annual_rework_cost) / 
-                                 self.total_team_cost
+            "quality_cost_ratio": safe_divide(
+                self.annual_incident_cost + self.annual_rework_cost,
+                self.total_team_cost,
+                default=0.0,
+                context="quality cost ratio calculation"
+            )
         }
 
 
@@ -168,18 +229,34 @@ def calculate_opportunity_cost(baseline: BaselineMetrics) -> Dict[str, float]:
     """Calculate the opportunity cost of current inefficiencies"""
     
     # What could be gained if inefficiencies were eliminated?
-    perfect_world_features = baseline.team_size * 260 / baseline.avg_feature_cycle_days
+    perfect_world_features = baseline.team_size * safe_divide(
+        WORKING_DAYS_PER_YEAR,
+        baseline.avg_feature_cycle_days,
+        default=0.0,
+        context="perfect world features calculation"
+    )
     actual_features = baseline.team_size * baseline.feature_delivery_rate
     
     lost_features = perfect_world_features - actual_features
-    lost_feature_value = lost_features * (baseline.total_team_cost / actual_features)
+    lost_feature_value = lost_features * safe_divide(
+        baseline.total_team_cost,
+        actual_features,
+        default=0.0,
+        context="lost feature value calculation"
+    )
+    
+    slow_onboarding_cost = safe_divide(
+        baseline.onboarding_days,
+        WORKING_DAYS_PER_YEAR,
+        default=0.0,
+        context="slow onboarding cost calculation"
+    ) * baseline.weighted_avg_flc * (baseline.team_size * DEFAULT_TURNOVER_RATE)
     
     return {
         "lost_feature_value": lost_feature_value,
         "quality_costs": baseline.annual_incident_cost + baseline.annual_rework_cost,
-        "slow_onboarding_cost": (baseline.onboarding_days / 260) * baseline.weighted_avg_flc * 
-                               (baseline.team_size * 0.2),  # Assume 20% turnover
-        "context_switching_cost": baseline.total_team_cost * 0.1,  # Estimate 10% productivity loss
+        "slow_onboarding_cost": slow_onboarding_cost,
+        "context_switching_cost": baseline.total_team_cost * CONTEXT_SWITCHING_PRODUCTIVITY_LOSS,
         "total_opportunity_cost": lost_feature_value + baseline.annual_incident_cost + 
                                  baseline.annual_rework_cost
     }

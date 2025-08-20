@@ -7,6 +7,12 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 import numpy as np
 from .baseline import BaselineMetrics
+from ..utils.math_helpers import safe_divide, validate_positive, validate_ratio
+from ..utils.exceptions import CalculationError, ValidationError
+from ..config.constants import (
+    WORKING_HOURS_PER_YEAR, DEV_HOURS_PER_MONTH, ENTERPRISE_TEAM_SIZE_THRESHOLD,
+    MONTHS_PER_YEAR
+)
 
 @dataclass
 class AIToolCosts:
@@ -43,6 +49,41 @@ class AIToolCosts:
     # Experimentation budget
     pilot_budget: float                 # Initial experimentation budget
     ongoing_experimentation: float      # Annual R&D budget for AI tools
+    
+    def __post_init__(self):
+        """Validate all cost parameters"""
+        # Validate positive costs
+        validate_positive(self.cost_per_seat_month, "cost_per_seat_month")
+        validate_positive(self.initial_tokens_per_dev_month, "initial_tokens_per_dev_month")
+        validate_positive(self.token_price_per_million, "token_price_per_million")
+        validate_positive(self.initial_training_cost_per_dev, "initial_training_cost_per_dev", allow_zero=True)
+        validate_positive(self.ongoing_training_cost_annual, "ongoing_training_cost_annual", allow_zero=True)
+        validate_positive(self.trainer_cost_per_day, "trainer_cost_per_day")
+        validate_positive(self.training_days_initial, "training_days_initial", allow_zero=True)
+        validate_positive(self.training_days_ongoing_annual, "training_days_ongoing_annual", allow_zero=True)
+        validate_positive(self.infrastructure_setup, "infrastructure_setup", allow_zero=True)
+        validate_positive(self.infrastructure_monthly, "infrastructure_monthly", allow_zero=True)
+        validate_positive(self.context_switch_cost_month, "context_switch_cost_month", allow_zero=True)
+        validate_positive(self.security_review_overhead, "security_review_overhead", allow_zero=True)
+        validate_positive(self.pilot_budget, "pilot_budget", allow_zero=True)
+        validate_positive(self.ongoing_experimentation, "ongoing_experimentation", allow_zero=True)
+        
+        # Validate ratios and percentages
+        validate_ratio(self.enterprise_discount, "enterprise_discount")
+        validate_ratio(self.token_price_decline_annual, "token_price_decline_annual")
+        validate_ratio(self.admin_overhead_percentage, "admin_overhead_percentage")
+        validate_ratio(self.bad_code_cleanup_percentage, "bad_code_cleanup_percentage")
+        
+        # Validate growth rate (can be higher than 1.0)
+        validate_positive(self.token_growth_rate_monthly, "token_growth_rate_monthly")
+        
+        # Validate plateau month
+        if self.token_plateau_month < 1:
+            raise ValidationError(
+                field="token_plateau_month",
+                issue="must be at least 1",
+                suggestion="Set token_plateau_month to a positive integer"
+            )
 
 
 class CostModel:
@@ -65,7 +106,7 @@ class CostModel:
             base_cost = adopted_devs * self.costs.cost_per_seat_month
             
             # Apply enterprise discount for large teams
-            if self.baseline.team_size >= 50:
+            if self.baseline.team_size >= ENTERPRISE_TEAM_SIZE_THRESHOLD:
                 base_cost *= (1 - self.costs.enterprise_discount)
             
             monthly_costs[month] = base_cost
@@ -82,7 +123,7 @@ class CostModel:
         
         for month in range(months):
             # Calculate token price at this month (declining over time)
-            years_elapsed = month / 12
+            years_elapsed = month / MONTHS_PER_YEAR
             current_price = self.costs.token_price_per_million * (
                 (1 - self.costs.token_price_decline_annual) ** years_elapsed
             )
@@ -154,8 +195,13 @@ class CostModel:
                 context_cost = self.costs.context_switch_cost_month * adopted_devs * 0.5
             
             # Bad code cleanup cost - percentage of dev time spent fixing AI mistakes
-            hourly_rate = self.baseline.weighted_avg_flc / 2080
-            dev_hours_month = 173  # Average working hours per month
+            hourly_rate = safe_divide(
+                self.baseline.weighted_avg_flc,
+                WORKING_HOURS_PER_YEAR,
+                default=0.0,
+                context="hourly rate calculation"
+            )
+            dev_hours_month = DEV_HOURS_PER_MONTH
             bad_code_hours = dev_hours_month * self.costs.bad_code_cleanup_percentage * adopted_devs
             bad_code_cost = bad_code_hours * hourly_rate
             
@@ -181,15 +227,19 @@ class CostModel:
         infrastructure[0] += self.costs.infrastructure_setup
         
         # Admin overhead
-        admin_cost_monthly = (self.costs.admin_overhead_percentage * 
-                             self.baseline.weighted_avg_flc / 12)
+        admin_cost_monthly = self.costs.admin_overhead_percentage * safe_divide(
+            self.baseline.weighted_avg_flc,
+            MONTHS_PER_YEAR,
+            default=0.0,
+            context="admin cost monthly calculation"
+        )
         admin = np.full(months, admin_cost_monthly)
         
         # Experimentation costs
         experimentation = np.zeros(months)
         experimentation[0] = self.costs.pilot_budget
         for month in range(months):
-            if month > 0 and month % 12 == 0:
+            if month > 0 and month % MONTHS_PER_YEAR == 0:
                 experimentation[month] = self.costs.ongoing_experimentation
         
         total = licensing + tokens + training + hidden + infrastructure + admin + experimentation
@@ -227,7 +277,7 @@ class CostModel:
     def project_future_costs(self, years: int = 5) -> Dict[str, float]:
         """Project costs over multiple years with learning effects"""
         
-        months = years * 12
+        months = years * MONTHS_PER_YEAR
         # Assume S-curve adoption reaching 80% over 2 years
         adoption = np.minimum(np.arange(months) / 24, 0.8)
         
@@ -235,8 +285,8 @@ class CostModel:
         
         yearly_costs = {}
         for year in range(years):
-            start_month = year * 12
-            end_month = min((year + 1) * 12, months)
+            start_month = year * MONTHS_PER_YEAR
+            end_month = min((year + 1) * MONTHS_PER_YEAR, months)
             yearly_costs[f"year_{year+1}"] = costs["total"][start_month:end_month].sum()
         
         return yearly_costs
