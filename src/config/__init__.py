@@ -1,0 +1,1 @@
+# Configuration package for AI Impact Analysis Model
