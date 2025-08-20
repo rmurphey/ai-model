@@ -32,37 +32,62 @@ python main.py --scenario all --compare
 python main.py --scenario moderate_enterprise --visualize
 ```
 
+## Project Structure
+
+```
+├── main.py                     # Main entry point
+├── requirements.txt            # Dependencies
+├── src/
+│   ├── model/                 # Core model components
+│   │   ├── baseline.py        # Baseline metrics
+│   │   ├── adoption_dynamics.py # Adoption patterns
+│   │   ├── impact_model.py    # Value calculations
+│   │   ├── cost_structure.py  # Cost modeling
+│   │   └── visualizations.py  # Charts and reports
+│   ├── scenarios/             # Scenario configurations
+│   │   └── scenarios.yaml     # Scenario definitions
+│   └── analysis/              # Analysis scripts
+│       ├── monte_carlo_analysis.py
+│       ├── generate_visualizations.py
+│       └── ...
+├── outputs/
+│   ├── charts/               # Generated visualizations
+│   ├── reports/              # HTML reports and data
+│   └── data/                 # CSV exports
+└── venv/                     # Virtual environment
+```
+
 ## Model Components
 
-### 1. Baseline Metrics (`baseline.py`)
+### 1. Baseline Metrics (`src/model/baseline.py`)
 Establishes current state before AI adoption:
 - Team composition and fully-loaded costs
 - Current delivery metrics (cycle time, defect rates)
 - Capacity allocation (features vs. maintenance)
 - Quality baselines (incidents, rework)
 
-### 2. Adoption Dynamics (`adoption_dynamics.py`)
+### 2. Adoption Dynamics (`src/model/adoption_dynamics.py`)
 Models realistic adoption patterns:
 - S-curve adoption with segment-specific rates
 - Learning curves and efficiency gains
 - Dropout and re-engagement patterns
 - Network effects and peer influence
 
-### 3. Impact Model (`impact_model.py`)
+### 3. Impact Model (`src/model/impact_model.py`)
 Calculates business value across dimensions:
 - **Time Value**: Faster feature delivery, bug fixes, onboarding
 - **Quality Value**: Fewer defects, incidents, less rework
 - **Capacity Value**: More time on strategic work
 - **Strategic Value**: Innovation, retention, competitive advantage
 
-### 4. Cost Structure (`cost_structure.py`)
+### 4. Cost Structure (`src/model/cost_structure.py`)
 Comprehensive cost modeling:
 - Per-seat licensing with enterprise discounts
 - Token consumption with price evolution
 - Training and change management
 - Hidden costs (context switching, bad code cleanup)
 
-### 5. Visualizations (`visualizations.py`)
+### 5. Visualizations (`src/model/visualizations.py`)
 Executive-ready reporting:
 - Adoption and efficiency curves
 - Cost breakdown over time
@@ -102,7 +127,7 @@ Instead of abstract "productivity gains," the model measures:
 
 ### Customizing Scenarios
 
-Edit `scenarios.yaml` to define your own scenarios:
+Edit `src/scenarios/scenarios.yaml` to define your own scenarios:
 
 ```yaml
 my_scenario:

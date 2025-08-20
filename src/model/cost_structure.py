@@ -6,7 +6,7 @@ Models all direct and indirect costs associated with AI tool adoption.
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 import numpy as np
-from baseline import BaselineMetrics
+from .baseline import BaselineMetrics
 
 @dataclass
 class AIToolCosts:

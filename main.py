@@ -11,17 +11,17 @@ from typing import Dict, Optional, List
 import argparse
 from tabulate import tabulate
 
-from baseline import BaselineMetrics, create_industry_baseline, calculate_opportunity_cost
-from impact_model import ImpactFactors, BusinessImpact, create_impact_scenario
-from adoption_dynamics import AdoptionParameters, AdoptionModel, create_adoption_scenario
-from cost_structure import AIToolCosts, CostModel, create_cost_scenario, calculate_breakeven
-from visualizations import ModelVisualizer, create_summary_table
+from src.model.baseline import BaselineMetrics, create_industry_baseline, calculate_opportunity_cost
+from src.model.impact_model import ImpactFactors, BusinessImpact, create_impact_scenario
+from src.model.adoption_dynamics import AdoptionParameters, AdoptionModel, create_adoption_scenario
+from src.model.cost_structure import AIToolCosts, CostModel, create_cost_scenario, calculate_breakeven
+from src.model.visualizations import ModelVisualizer, create_summary_table
 
 
 class AIImpactModel:
     """Main orchestration class for the AI impact model"""
     
-    def __init__(self, scenario_file: str = "scenarios.yaml"):
+    def __init__(self, scenario_file: str = "src/scenarios/scenarios.yaml"):
         """Initialize with scenario configurations"""
         with open(scenario_file, 'r') as f:
             self.scenarios = yaml.safe_load(f)

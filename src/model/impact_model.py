@@ -6,7 +6,7 @@ Calculates the value created through various improvement vectors.
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 import numpy as np
-from baseline import BaselineMetrics
+from .baseline import BaselineMetrics
 
 @dataclass 
 class ImpactFactors:
