@@ -13,9 +13,10 @@ from tabulate import tabulate
 import sys
 import os
 
-# Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-from utils.colors import *
+from src.utils.colors import *
+from src.utils.exceptions import ConfigurationError, ScenarioError, CalculationError
+from src.utils.math_helpers import safe_divide
+from src.config.constants import DEFAULT_DISCOUNT_RATE_ANNUAL, MONTHS_PER_YEAR
 
 from src.model.baseline import BaselineMetrics, create_industry_baseline, calculate_opportunity_cost
 from src.model.impact_model import ImpactFactors, BusinessImpact, create_impact_scenario
@@ -28,15 +29,45 @@ class AIImpactModel:
     
     def __init__(self, scenario_file: str = "src/scenarios/scenarios.yaml"):
         """Initialize with scenario configurations"""
-        with open(scenario_file, 'r') as f:
-            self.scenarios = yaml.safe_load(f)
+        try:
+            with open(scenario_file, 'r') as f:
+                self.scenarios = yaml.safe_load(f)
+        except FileNotFoundError:
+            raise ConfigurationError(
+                f"Scenario configuration file not found: {scenario_file}",
+                config_file=scenario_file,
+                suggestion="Ensure the scenario file exists or check the path"
+            )
+        except yaml.YAMLError as e:
+            raise ConfigurationError(
+                f"Invalid YAML format in scenario file: {e}",
+                config_file=scenario_file,
+                suggestion="Check YAML syntax and formatting"
+            )
+        except Exception as e:
+            raise ConfigurationError(
+                f"Failed to load scenario file: {e}",
+                config_file=scenario_file,
+                suggestion="Check file permissions and content"
+            )
+        
+        if not self.scenarios:
+            raise ConfigurationError(
+                "Scenario file is empty or contains no valid scenarios",
+                config_file=scenario_file,
+                suggestion="Add at least one scenario configuration"
+            )
         
         self.results = {}
     
     def load_scenario(self, scenario_name: str) -> Dict:
         """Load a specific scenario configuration"""
         if scenario_name not in self.scenarios:
-            raise ValueError(f"Scenario '{scenario_name}' not found. Available: {list(self.scenarios.keys())}")
+            raise ScenarioError(
+                scenario_name=scenario_name,
+                issue="not found in configuration",
+                available_scenarios=list(self.scenarios.keys())
+            )
         
         return self.scenarios[scenario_name]
     
@@ -100,8 +131,8 @@ class AIImpactModel:
         
         breakeven = calculate_breakeven(costs, {'total': monthly_value})
         
-        # Calculate NPV (assuming 10% discount rate)
-        discount_rate = 0.10 / 12  # Monthly discount rate
+        # Calculate NPV using default discount rate
+        discount_rate = DEFAULT_DISCOUNT_RATE_ANNUAL / MONTHS_PER_YEAR  # Monthly discount rate
         discount_factors = [(1 + discount_rate) ** -i for i in range(months)]
         npv = sum((monthly_value[i] - costs['total'][i]) * discount_factors[i] for i in range(months))
         
@@ -124,11 +155,21 @@ class AIImpactModel:
             'impact_breakdown': final_impact_breakdown,
             'breakeven_month': breakeven,
             'npv': npv,
-            'roi_percent': ((cumulative_value[-1] - cumulative_costs[-1]) / cumulative_costs[-1]) * 100 if cumulative_costs[-1] > 0 else 0,
+            'roi_percent': safe_divide(
+                (cumulative_value[-1] - cumulative_costs[-1]) * 100,
+                cumulative_costs[-1],
+                default=0.0,
+                context="ROI calculation"
+            ),
             'peak_adoption': max(adoption_curve),
             'total_cost_3y': sum(costs['total'][:min(36, months)]),
             'total_value_3y': sum(monthly_value[:min(36, months)]),
-            'annual_cost_per_dev': (sum(costs['total'][:12]) / (baseline.team_size * np.mean(adoption_curve[:12]))) if np.mean(adoption_curve[:12]) > 0 else 0,
+            'annual_cost_per_dev': safe_divide(
+                sum(costs['total'][:12]),
+                baseline.team_size * np.mean(adoption_curve[:12]),
+                default=0.0,
+                context="annual cost per developer calculation"
+            ),
             'annual_value_per_dev': final_impact_breakdown['value_per_developer']
         }
         
