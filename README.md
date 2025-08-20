@@ -19,41 +19,48 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# Run default scenario
-python main.py
+# Using the Claude command (recommended)
+claude analyze moderate_enterprise
+claude analyze --compare
+claude analyze --list
 
-# Run specific scenario
-python main.py --scenario aggressive_scaleup
+# Or using Python directly
+python main.py --scenario moderate_enterprise
+python main.py --compare
 
-# Compare all scenarios
-python main.py --scenario all --compare
-
-# Generate visualizations
-python main.py --scenario moderate_enterprise --visualize
+# Using the analysis script with export options
+python run_analysis.py moderate_enterprise
+python run_analysis.py --output my_report.txt moderate_enterprise
+python run_analysis.py --compare all
 ```
 
 ## Project Structure
 
 ```
 ├── main.py                     # Main entry point
+├── run_analysis.py             # Analysis script with export functionality
 ├── requirements.txt            # Dependencies
+├── .claude/
+│   └── commands/
+│       ├── analyze             # Claude command executable
+│       └── analyze.md          # Command documentation
 ├── src/
 │   ├── model/                 # Core model components
 │   │   ├── baseline.py        # Baseline metrics
 │   │   ├── adoption_dynamics.py # Adoption patterns
 │   │   ├── impact_model.py    # Value calculations
 │   │   ├── cost_structure.py  # Cost modeling
-│   │   └── visualizations.py  # Charts and reports
+│   │   └── visualizations.py  # Text-based utilities
 │   ├── scenarios/             # Scenario configurations
 │   │   └── scenarios.yaml     # Scenario definitions
-│   └── analysis/              # Analysis scripts
-│       ├── monte_carlo_analysis.py
-│       ├── generate_visualizations.py
-│       └── ...
+│   └── analysis/              # Additional analysis tools
+│       ├── terminal_visualizations.py
+│       ├── generate_scenario_matrix.py
+│       └── save_results.py
 ├── outputs/
-│   ├── charts/               # Generated visualizations
-│   ├── reports/              # HTML reports and data
-│   └── data/                 # CSV exports
+│   ├── charts/               # PNG visualizations (legacy)
+│   ├── reports/              # Text analysis reports
+│   └── data/                 # CSV data exports
 └── venv/                     # Virtual environment
 ```
 
@@ -87,13 +94,13 @@ Comprehensive cost modeling:
 - Training and change management
 - Hidden costs (context switching, bad code cleanup)
 
-### 5. Visualizations (`src/model/visualizations.py`)
-Executive-ready reporting:
-- Adoption and efficiency curves
-- Cost breakdown over time
-- ROI timeline with breakeven
-- Sensitivity analysis
-- Scenario comparisons
+### 5. Text-Based Utilities (`src/model/visualizations.py`)
+Console-friendly reporting utilities:
+- Formatted summary tables
+- ASCII charts and timelines  
+- Currency and percentage formatting
+- Executive summary generation
+- Text-based cost and value breakdowns
 
 ## Key Insights
 
@@ -149,6 +156,65 @@ my_scenario:
   timeframe_months: 24
 ```
 
+## Claude Command and Export Functionality
+
+### Claude Command Usage
+
+The repository includes a native Claude command for streamlined analysis:
+
+```bash
+# Single scenario analysis
+claude analyze moderate_enterprise
+
+# Compare standard scenarios (conservative_startup, moderate_enterprise, aggressive_scaleup)
+claude analyze --compare
+
+# List all available scenarios
+claude analyze --list
+
+# Multiple scenario analysis
+claude analyze startup enterprise scaleup
+
+# Custom output filename
+claude analyze --output my_report.txt moderate_enterprise
+```
+
+### Export and Output Options
+
+#### Automatic Report Generation
+All analyses automatically generate timestamped reports in `outputs/reports/`:
+- **Filename format**: `analysis_YYYYMMDD_HHMMSS.txt`
+- **Custom names**: Use `--output filename.txt` for custom naming
+- **Content**: Executive summaries, financial metrics, value breakdowns
+
+#### Report Contents
+Each exported report includes:
+- **Executive Summary**: Key metrics, NPV, ROI, breakeven analysis
+- **Financial Breakdown**: 3-year investment vs value, per-developer costs
+- **Value Analysis**: Time, quality, capacity, and strategic value components
+- **Adoption Metrics**: Peak adoption rates, efficiency curves
+- **Opportunity Cost Analysis**: Current inefficiency vs AI tool value capture
+
+#### Direct Script Usage
+For more control, use the analysis script directly:
+
+```bash
+# Basic analysis with auto-generated filename
+python run_analysis.py moderate_enterprise
+
+# Custom output file
+python run_analysis.py --output quarterly_analysis.txt moderate_enterprise
+
+# Multiple scenarios in one report
+python run_analysis.py startup enterprise scaleup
+
+# Comparison mode
+python run_analysis.py --compare all
+
+# List available scenarios
+python run_analysis.py --list
+```
+
 ## Interpreting Results
 
 ### Key Metrics
@@ -168,32 +234,31 @@ The model accounts for:
 
 ## Advanced Usage
 
-### Monte Carlo Simulation
+### Programmatic Analysis
 
 ```python
-from adoption_dynamics import simulate_adoption_monte_carlo, create_adoption_scenario
+from main import AIImpactModel
 
-params = create_adoption_scenario("organic")
-results = simulate_adoption_monte_carlo(params, n_simulations=1000)
+# Initialize model
+model = AIImpactModel()
 
-# results contains percentiles (P10, P50, P90) for risk analysis
+# Run specific scenario
+results = model.run_scenario("moderate_enterprise")
+model.print_summary(results)
+
+# Compare multiple scenarios
+for scenario in ["conservative_startup", "moderate_enterprise", "aggressive_scaleup"]:
+    model.run_scenario(scenario)
+model.compare_scenarios()
 ```
 
-### Task-Specific Analysis
+### Custom Analysis Scripts
 
-```python
-from impact_model import calculate_task_specific_impact
-
-task_distribution = {
-    "boilerplate": 0.15,
-    "testing": 0.25,
-    "documentation": 0.10,
-    "debugging": 0.20,
-    "feature_development": 0.30
-}
-
-impact = calculate_task_specific_impact(baseline, factors, task_distribution)
-```
+The `src/analysis/` directory contains additional analysis tools:
+- `terminal_visualizations.py` - Console-based charts and graphs
+- `generate_scenario_matrix.py` - Batch scenario analysis
+- `save_results.py` - Export utilities for different formats
+- `scaleup_analysis.py` - Growth-focused analysis patterns
 
 ## Model Assumptions
 
@@ -217,6 +282,8 @@ impact = calculate_task_specific_impact(baseline, factors, task_distribution)
 - [ ] Real-time token price updates
 - [ ] Team growth modeling
 - [ ] Multi-tool comparison (different AI vendors)
+- [ ] CSV/JSON export formats for analysis results
+- [ ] Interactive command-line prompts for scenario building
 
 ## Contributing
 
@@ -224,7 +291,9 @@ This model is designed to be extended. Key extension points:
 - Add new baseline profiles in `create_industry_baseline()`
 - Define new impact factors in `ImpactFactors`
 - Create custom adoption curves in `AdoptionModel`
-- Add new visualization types in `ModelVisualizer`
+- Add new text-based analysis utilities in `ModelVisualizer`
+- Extend export functionality in `run_analysis.py`
+- Create new Claude commands in `.claude/commands/`
 
 ## License
 
