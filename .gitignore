@@ -29,6 +29,11 @@ charts_*/
 !scaleup_analysis_*.txt
 !monte_carlo_metrics.csv
 
+# Coverage reports
+.coverage
+coverage.xml
+htmlcov/
+
 # Temporary files
 debug_*.py
 temp_test_*.py
