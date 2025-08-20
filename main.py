@@ -15,7 +15,6 @@ from src.model.baseline import BaselineMetrics, create_industry_baseline, calcul
 from src.model.impact_model import ImpactFactors, BusinessImpact, create_impact_scenario
 from src.model.adoption_dynamics import AdoptionParameters, AdoptionModel, create_adoption_scenario
 from src.model.cost_structure import AIToolCosts, CostModel, create_cost_scenario, calculate_breakeven
-from src.model.visualizations import ModelVisualizer, create_summary_table
 
 
 class AIImpactModel:
@@ -26,7 +25,6 @@ class AIImpactModel:
         with open(scenario_file, 'r') as f:
             self.scenarios = yaml.safe_load(f)
         
-        self.visualizer = ModelVisualizer()
         self.results = {}
     
     def load_scenario(self, scenario_name: str) -> Dict:
@@ -174,41 +172,6 @@ class AIImpactModel:
         print(f"AI tool value capture: ${results['impact_breakdown']['total_annual_value']:,.0f}/year")
         print(f"Efficiency gain: {(results['impact_breakdown']['total_annual_value']/opportunity['total_opportunity_cost'])*100:.1f}%")
     
-    def generate_visualizations(self, scenario_name: str):
-        """Generate all visualizations for a scenario"""
-        
-        if scenario_name not in self.results:
-            raise ValueError(f"Run scenario '{scenario_name}' first")
-        
-        results = self.results[scenario_name]
-        
-        # Create individual charts
-        charts = {}
-        
-        # 1. Adoption curve
-        charts['adoption'] = self.visualizer.plot_adoption_curve(
-            results['adoption'],
-            results['efficiency']
-        )
-        
-        # 2. Cost breakdown
-        charts['costs'] = self.visualizer.plot_cost_breakdown(results['costs'])
-        
-        # 3. ROI timeline
-        charts['roi'] = self.visualizer.plot_roi_timeline(
-            results['costs']['total'],
-            results['value'],
-            results['breakeven_month']
-        )
-        
-        # 4. Value components
-        charts['value'] = self.visualizer.plot_value_components(results['impact_breakdown'])
-        
-        # 5. Executive dashboard
-        charts['dashboard'] = self.visualizer.create_executive_dashboard(results)
-        
-        return charts
-    
     def compare_scenarios(self, scenario_names: List[str] = None):
         """Compare multiple scenarios"""
         
@@ -250,10 +213,6 @@ def main():
                        help='Scenario to run (or "all" for all scenarios)')
     parser.add_argument('--compare', '-c', action='store_true',
                        help='Compare all scenarios')
-    parser.add_argument('--visualize', '-v', action='store_true',
-                       help='Generate visualizations')
-    parser.add_argument('--export', '-e', action='store_true',
-                       help='Export charts to files')
     
     args = parser.parse_args()
     
@@ -270,16 +229,6 @@ def main():
     else:
         results = model.run_scenario(args.scenario)
         model.print_summary(results)
-        
-        if args.visualize:
-            charts = model.generate_visualizations(args.scenario)
-            
-            # Display first chart as example
-            print("\nVisualizations generated. Opening ROI timeline...")
-            charts['roi'].show()
-            
-            if args.export:
-                model.visualizer.export_charts(charts)
     
     # Compare scenarios if requested
     if args.compare:

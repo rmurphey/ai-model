@@ -1,448 +1,219 @@
 """
-Visualization module for AI development impact model.
-Creates executive-ready charts and dashboards.
+Text-based visualization utilities for AI development impact model.
+Creates console-friendly charts and summary tables.
 """
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
-import seaborn as sns
 from typing import Dict, List, Tuple, Optional
 
-# Set style
-plt.style.use('seaborn-v0_8-darkgrid')
-sns.set_palette("husl")
+
+def create_summary_table(data: Dict, title: str = "Summary") -> str:
+    """Create a formatted text table from data dictionary"""
+    
+    max_key_length = max(len(str(k)) for k in data.keys())
+    max_val_length = max(len(str(v)) for v in data.values())
+    
+    # Create table header
+    header = f"{title}"
+    separator = "-" * max(len(header), max_key_length + max_val_length + 3)
+    
+    table = f"{header}\n{separator}\n"
+    
+    for key, value in data.items():
+        table += f"{key:<{max_key_length}} : {value}\n"
+    
+    return table
+
+
+def format_currency(value: float) -> str:
+    """Format value as currency string"""
+    if value >= 1e6:
+        return f"${value/1e6:.1f}M"
+    elif value >= 1e3:
+        return f"${value/1e3:.0f}K"
+    else:
+        return f"${value:.0f}"
+
+
+def format_percentage(value: float) -> str:
+    """Format value as percentage string"""
+    return f"{value*100:.1f}%"
+
+
+def create_ascii_chart(values: List[float], labels: List[str] = None, 
+                      title: str = "Chart", width: int = 60) -> str:
+    """Create simple ASCII bar chart"""
+    
+    if not values:
+        return f"{title}\nNo data to display"
+    
+    max_val = max(values)
+    min_val = min(values)
+    
+    # Normalize values to chart width
+    if max_val > min_val:
+        normalized = [(v - min_val) / (max_val - min_val) * width for v in values]
+    else:
+        normalized = [width // 2 for _ in values]
+    
+    chart = f"{title}\n{'=' * len(title)}\n"
+    
+    for i, (val, norm) in enumerate(zip(values, normalized)):
+        label = labels[i] if labels and i < len(labels) else f"Item {i+1}"
+        bar = "█" * int(norm)
+        chart += f"{label[:15]:<15} |{bar:<{width}} {format_currency(val)}\n"
+    
+    return chart
+
+
+def create_timeline_chart(values: List[float], title: str = "Timeline", 
+                         months: int = None) -> str:
+    """Create ASCII timeline chart"""
+    
+    if not values:
+        return f"{title}\nNo data to display"
+    
+    chart = f"{title}\n{'=' * len(title)}\n"
+    
+    max_val = max(values)
+    min_val = min(values) if min(values) < 0 else 0
+    
+    # Create simple timeline representation
+    for i, val in enumerate(values):
+        month = i + 1
+        if val >= 0:
+            bar_len = int((val / max_val) * 30) if max_val > 0 else 0
+            bar = "+" * bar_len
+            chart += f"Month {month:2d} |{bar:<30} {format_currency(val)}\n"
+        else:
+            bar_len = int((abs(val) / abs(min_val)) * 30) if min_val < 0 else 0
+            bar = "-" * bar_len
+            chart += f"Month {month:2d} |{bar:<30} {format_currency(val)}\n"
+    
+    return chart
+
 
 class ModelVisualizer:
-    """Create visualizations for model outputs"""
+    """Create text-based visualizations for model outputs"""
     
-    def __init__(self, figsize=(12, 8)):
-        self.figsize = figsize
-        self.colors = {
-            'adoption': '#2E86AB',
-            'cost': '#E63946',
-            'value': '#06D6A0',
-            'roi': '#7209B7',
-            'baseline': '#A8DADC'
-        }
+    def __init__(self):
+        self.charts = {}
     
-    def plot_adoption_curve(self, adoption_data: np.ndarray, efficiency_data: np.ndarray = None) -> go.Figure:
-        """Plot adoption and efficiency curves"""
+    def create_adoption_summary(self, adoption_curve: np.ndarray, 
+                              efficiency_curve: np.ndarray) -> str:
+        """Create text summary of adoption patterns"""
         
-        months = np.arange(len(adoption_data))
+        max_adoption = max(adoption_curve)
+        final_adoption = adoption_curve[-1]
+        months_to_50pct = None
         
-        fig = make_subplots(
-            rows=1, cols=1,
-            subplot_titles=("AI Tool Adoption Over Time",),
-            specs=[[{"secondary_y": True}]]
-        )
+        # Find month when 50% adoption reached
+        for i, adoption in enumerate(adoption_curve):
+            if adoption >= 0.5:
+                months_to_50pct = i + 1
+                break
         
-        # Adoption curve
-        fig.add_trace(
-            go.Scatter(
-                x=months,
-                y=adoption_data * 100,
-                mode='lines',
-                name='Adoption Rate',
-                line=dict(color=self.colors['adoption'], width=3),
-                fill='tonexty',
-                fillcolor='rgba(46, 134, 171, 0.2)'
-            ),
-            secondary_y=False
-        )
+        summary = "ADOPTION ANALYSIS\n"
+        summary += "=" * 17 + "\n"
+        summary += f"Peak Adoption Rate    : {format_percentage(max_adoption)}\n"
+        summary += f"Final Adoption Rate   : {format_percentage(final_adoption)}\n"
+        summary += f"Months to 50% Adoption: {months_to_50pct or 'Not reached'}\n"
+        summary += f"Final Efficiency      : {format_percentage(efficiency_curve[-1])}\n"
         
-        # Efficiency curve if provided
-        if efficiency_data is not None:
-            fig.add_trace(
-                go.Scatter(
-                    x=months,
-                    y=efficiency_data * 100,
-                    mode='lines',
-                    name='User Efficiency',
-                    line=dict(color=self.colors['value'], width=2, dash='dash')
-                ),
-                secondary_y=True
-            )
-        
-        fig.update_xaxes(title_text="Month", gridcolor='lightgray')
-        fig.update_yaxes(title_text="Adoption (%)", secondary_y=False, gridcolor='lightgray')
-        fig.update_yaxes(title_text="Efficiency (%)", secondary_y=True)
-        
-        fig.update_layout(
-            height=500,
-            hovermode='x unified',
-            legend=dict(x=0.02, y=0.98),
-            plot_bgcolor='white'
-        )
-        
-        return fig
+        return summary
     
-    def plot_cost_breakdown(self, cost_data: Dict[str, np.ndarray]) -> go.Figure:
-        """Create stacked area chart of costs over time"""
+    def create_cost_breakdown(self, costs: Dict) -> str:
+        """Create text breakdown of costs"""
         
-        months = np.arange(len(cost_data['total']))
+        total_costs = sum(costs['total'])
         
-        fig = go.Figure()
+        breakdown = "COST BREAKDOWN\n"
+        breakdown += "=" * 14 + "\n"
+        breakdown += f"Total Investment      : {format_currency(total_costs)}\n"
+        breakdown += f"Monthly Average       : {format_currency(total_costs / len(costs['total']))}\n"
         
-        # Define cost categories and colors
-        categories = ['licensing', 'tokens', 'training', 'hidden', 'infrastructure', 'admin']
-        colors = px.colors.qualitative.Set2
+        if 'licensing' in costs:
+            licensing_total = sum(costs['licensing'])
+            breakdown += f"Licensing Costs       : {format_currency(licensing_total)}\n"
         
-        # Create stacked area chart
-        for i, category in enumerate(categories):
-            if category in cost_data:
-                fig.add_trace(go.Scatter(
-                    x=months,
-                    y=cost_data[category],
-                    mode='lines',
-                    name=category.capitalize(),
-                    stackgroup='costs',
-                    fillcolor=colors[i % len(colors)],
-                    line=dict(width=0.5, color=colors[i % len(colors)])
-                ))
+        if 'tokens' in costs:
+            token_total = sum(costs['tokens'])
+            breakdown += f"Token Costs           : {format_currency(token_total)}\n"
         
-        # Add total cost line
-        fig.add_trace(go.Scatter(
-            x=months,
-            y=cost_data['total'],
-            mode='lines',
-            name='Total',
-            line=dict(color='black', width=2, dash='dash')
-        ))
+        if 'training' in costs:
+            training_total = sum(costs['training'])
+            breakdown += f"Training Costs        : {format_currency(training_total)}\n"
         
-        fig.update_layout(
-            title="Monthly Cost Breakdown",
-            xaxis_title="Month",
-            yaxis_title="Cost ($)",
-            height=500,
-            hovermode='x unified',
-            yaxis=dict(tickformat='$,.0f'),
-            plot_bgcolor='white'
-        )
-        
-        return fig
+        return breakdown
     
-    def plot_roi_timeline(self, costs: np.ndarray, value: np.ndarray, breakeven_month: Optional[int] = None) -> go.Figure:
-        """Plot ROI timeline with breakeven point"""
+    def create_value_summary(self, impact_breakdown: Dict) -> str:
+        """Create text summary of value creation"""
         
-        months = np.arange(len(costs))
-        cumulative_costs = np.cumsum(costs)
-        cumulative_value = np.cumsum(value)
-        net_value = cumulative_value - cumulative_costs
+        summary = "VALUE CREATION\n"
+        summary += "=" * 14 + "\n"
+        summary += f"Total Annual Value    : {format_currency(impact_breakdown['total_annual_value'])}\n"
+        summary += f"Time-to-Market Value  : {format_currency(impact_breakdown['time_value'])}\n"
+        summary += f"Quality Value         : {format_currency(impact_breakdown['quality_value'])}\n"
+        summary += f"Capacity Value        : {format_currency(impact_breakdown['capacity_value'])}\n"
+        summary += f"Strategic Value       : {format_currency(impact_breakdown['strategic_value'])}\n"
+        summary += f"Value per Developer   : {format_currency(impact_breakdown['value_per_developer'])}\n"
         
-        fig = go.Figure()
-        
-        # Cumulative costs
-        fig.add_trace(go.Scatter(
-            x=months,
-            y=cumulative_costs,
-            mode='lines',
-            name='Cumulative Costs',
-            line=dict(color=self.colors['cost'], width=3),
-            fill='tonexty',
-            fillcolor='rgba(230, 57, 70, 0.1)'
-        ))
-        
-        # Cumulative value
-        fig.add_trace(go.Scatter(
-            x=months,
-            y=cumulative_value,
-            mode='lines',
-            name='Cumulative Value',
-            line=dict(color=self.colors['value'], width=3),
-            fill='tonexty',
-            fillcolor='rgba(6, 214, 160, 0.1)'
-        ))
-        
-        # Net value
-        fig.add_trace(go.Scatter(
-            x=months,
-            y=net_value,
-            mode='lines',
-            name='Net Value',
-            line=dict(color=self.colors['roi'], width=2)
-        ))
-        
-        # Add breakeven line
-        fig.add_hline(y=0, line_dash="dash", line_color="gray", annotation_text="Breakeven")
-        
-        # Mark breakeven point
-        if breakeven_month is not None and breakeven_month < len(months):
-            fig.add_vline(
-                x=breakeven_month,
-                line_dash="dash",
-                line_color="green",
-                annotation_text=f"Breakeven: Month {breakeven_month}"
-            )
-        
-        fig.update_layout(
-            title="ROI Timeline",
-            xaxis_title="Month",
-            yaxis_title="Value ($)",
-            height=500,
-            hovermode='x unified',
-            yaxis=dict(tickformat='$,.0f'),
-            plot_bgcolor='white',
-            legend=dict(x=0.02, y=0.98)
-        )
-        
-        return fig
+        return summary
     
-    def plot_value_components(self, impact_data: Dict[str, float]) -> go.Figure:
-        """Create waterfall chart of value components"""
+    def create_executive_summary(self, results: Dict) -> str:
+        """Create comprehensive executive summary"""
         
-        fig = go.Figure(go.Waterfall(
-            name="Value Components",
-            orientation="v",
-            x=["Time Value", "Quality Value", "Capacity Value", "Strategic Value", "Total"],
-            y=[
-                impact_data.get('time_value', 0),
-                impact_data.get('quality_value', 0),
-                impact_data.get('capacity_value', 0),
-                impact_data.get('strategic_value', 0),
-                None  # Total will be calculated
-            ],
-            connector={"line": {"color": "rgb(63, 63, 63)"}},
-            increasing={"marker": {"color": self.colors['value']}},
-            totals={"marker": {"color": self.colors['roi']}}
-        ))
+        summary = f"EXECUTIVE SUMMARY: {results['scenario_name'].upper()}\n"
+        summary += "=" * (19 + len(results['scenario_name'])) + "\n\n"
         
-        fig.update_layout(
-            title="Annual Value Creation Breakdown",
-            yaxis_title="Annual Value ($)",
-            height=500,
-            yaxis=dict(tickformat='$,.0f'),
-            plot_bgcolor='white'
-        )
+        # Key metrics
+        summary += "KEY METRICS\n"
+        summary += "-" * 11 + "\n"
+        summary += f"Net Present Value     : {format_currency(results['npv'])}\n"
+        summary += f"Return on Investment  : {results['roi_percent']:.1f}%\n"
+        summary += f"Breakeven Month       : {results['breakeven_month'] or 'Not reached'}\n"
+        summary += f"Peak Adoption         : {format_percentage(results['peak_adoption'])}\n"
+        summary += f"Team Size             : {results['baseline'].team_size} developers\n\n"
         
-        return fig
+        # Financial summary
+        summary += "FINANCIAL IMPACT (3 YEARS)\n"
+        summary += "-" * 26 + "\n"
+        summary += f"Total Investment      : {format_currency(results['total_cost_3y'])}\n"
+        summary += f"Total Value Created   : {format_currency(results['total_value_3y'])}\n"
+        summary += f"Net Benefit           : {format_currency(results['total_value_3y'] - results['total_cost_3y'])}\n\n"
+        
+        # Per-developer metrics
+        summary += "PER DEVELOPER (ANNUAL)\n"
+        summary += "-" * 22 + "\n"
+        summary += f"Cost per Developer    : {format_currency(results['annual_cost_per_dev'])}\n"
+        summary += f"Value per Developer   : {format_currency(results['annual_value_per_dev'])}\n\n"
+        
+        return summary
     
-    def plot_sensitivity_tornado(self, sensitivity_results: Dict[str, Tuple[float, float]], base_value: float) -> go.Figure:
-        """Create tornado chart for sensitivity analysis"""
-        
-        parameters = list(sensitivity_results.keys())
-        low_values = [base_value - v[0] for v in sensitivity_results.values()]
-        high_values = [v[1] - base_value for v in sensitivity_results.values()]
-        
-        fig = go.Figure()
-        
-        # Low scenario (negative direction)
-        fig.add_trace(go.Bar(
-            y=parameters,
-            x=[-v for v in low_values],
-            orientation='h',
-            name='Downside',
-            marker_color=self.colors['cost']
-        ))
-        
-        # High scenario (positive direction)
-        fig.add_trace(go.Bar(
-            y=parameters,
-            x=high_values,
-            orientation='h',
-            name='Upside',
-            marker_color=self.colors['value']
-        ))
-        
-        fig.update_layout(
-            title="Sensitivity Analysis - Impact on NPV",
-            xaxis_title="Change in NPV ($)",
-            barmode='relative',
-            height=500,
-            xaxis=dict(tickformat='$,.0f'),
-            plot_bgcolor='white'
-        )
-        
-        return fig
-    
-    def plot_scenario_comparison(self, scenarios: Dict[str, Dict]) -> go.Figure:
-        """Compare multiple scenarios side by side"""
-        
-        scenario_names = list(scenarios.keys())
-        metrics = ['NPV', 'Payback (months)', 'Peak Adoption (%)', 'Annual ROI (%)']
-        
-        fig = make_subplots(
-            rows=2, cols=2,
-            subplot_titles=metrics,
-            specs=[[{'type': 'bar'}, {'type': 'bar'}],
-                   [{'type': 'bar'}, {'type': 'bar'}]]
-        )
-        
-        for i, metric in enumerate(metrics, 1):
-            row = (i - 1) // 2 + 1
-            col = (i - 1) % 2 + 1
-            
-            values = [scenarios[s].get(metric.lower().replace(' ', '_').replace('(%)', '').replace('(months)', ''), 0) 
-                     for s in scenario_names]
-            
-            fig.add_trace(
-                go.Bar(x=scenario_names, y=values, name=metric, showlegend=False),
-                row=row, col=col
-            )
-        
-        fig.update_layout(height=600, title_text="Scenario Comparison", plot_bgcolor='white')
-        return fig
-    
-    def create_executive_dashboard(self, model_results: Dict) -> go.Figure:
-        """Create comprehensive executive dashboard"""
-        
-        fig = make_subplots(
-            rows=3, cols=2,
-            subplot_titles=(
-                "Adoption & Efficiency", "Monthly Costs",
-                "Cumulative ROI", "Value Components",
-                "Cost per Developer", "Risk Scenarios"
-            ),
-            specs=[
-                [{"secondary_y": True}, {}],
-                [{}, {"type": "pie"}],
-                [{}, {}]
-            ],
-            vertical_spacing=0.12,
-            horizontal_spacing=0.15
-        )
-        
-        months = np.arange(len(model_results['adoption']))
-        
-        # 1. Adoption curve
-        fig.add_trace(
-            go.Scatter(x=months, y=model_results['adoption'] * 100, name='Adoption %',
-                      line=dict(color=self.colors['adoption'], width=2)),
-            row=1, col=1, secondary_y=False
-        )
-        
-        if 'efficiency' in model_results:
-            fig.add_trace(
-                go.Scatter(x=months, y=model_results['efficiency'] * 100, name='Efficiency %',
-                          line=dict(color=self.colors['value'], width=2, dash='dash')),
-                row=1, col=1, secondary_y=True
-            )
-        
-        # 2. Monthly costs
-        fig.add_trace(
-            go.Scatter(x=months, y=model_results['costs']['total'], name='Monthly Cost',
-                      line=dict(color=self.colors['cost'], width=2)),
-            row=1, col=2
-        )
-        
-        # 3. Cumulative ROI
-        cumulative_value = np.cumsum(model_results.get('value', np.zeros_like(months)))
-        cumulative_costs = model_results['costs']['cumulative']
-        
-        fig.add_trace(
-            go.Scatter(x=months, y=cumulative_value, name='Cum. Value',
-                      line=dict(color=self.colors['value'], width=2)),
-            row=2, col=1
-        )
-        fig.add_trace(
-            go.Scatter(x=months, y=cumulative_costs, name='Cum. Cost',
-                      line=dict(color=self.colors['cost'], width=2)),
-            row=2, col=1
-        )
-        
-        # 4. Value components (pie chart)
-        if 'impact_breakdown' in model_results:
-            fig.add_trace(
-                go.Pie(
-                    labels=['Time', 'Quality', 'Capacity', 'Strategic'],
-                    values=[
-                        model_results['impact_breakdown'].get('time_value', 0),
-                        model_results['impact_breakdown'].get('quality_value', 0),
-                        model_results['impact_breakdown'].get('capacity_value', 0),
-                        model_results['impact_breakdown'].get('strategic_value', 0)
-                    ],
-                    hole=0.3
-                ),
-                row=2, col=2
-            )
-        
-        # 5. Cost per developer
-        if 'cost_per_dev' in model_results:
-            fig.add_trace(
-                go.Scatter(x=months, y=model_results['cost_per_dev'], name='Cost/Dev',
-                          line=dict(color=self.colors['roi'], width=2)),
-                row=3, col=1
-            )
-        
-        # 6. Risk scenarios (if available)
-        if 'risk_scenarios' in model_results:
-            fig.add_trace(
-                go.Scatter(x=months, y=model_results['risk_scenarios']['p90'], name='P90',
-                          line=dict(color='lightgreen', width=1)),
-                row=3, col=2
-            )
-            fig.add_trace(
-                go.Scatter(x=months, y=model_results['risk_scenarios']['p50'], name='P50',
-                          line=dict(color='orange', width=2)),
-                row=3, col=2
-            )
-            fig.add_trace(
-                go.Scatter(x=months, y=model_results['risk_scenarios']['p10'], name='P10',
-                          line=dict(color='lightcoral', width=1)),
-                row=3, col=2
-            )
-        
-        # Update layout
-        fig.update_layout(
-            height=1000,
-            showlegend=True,
-            title_text="AI Development Impact - Executive Dashboard",
-            plot_bgcolor='white'
-        )
-        
-        # Update axes
-        fig.update_xaxes(title_text="Month", gridcolor='lightgray')
-        fig.update_yaxes(gridcolor='lightgray')
-        
-        return fig
-    
-    def export_charts(self, figures: Dict[str, go.Figure], output_dir: str = "charts"):
-        """Export all charts to files"""
-        import os
-        
-        os.makedirs(output_dir, exist_ok=True)
-        
-        for name, fig in figures.items():
-            # Save as HTML (interactive)
-            fig.write_html(f"{output_dir}/{name}.html")
-            
-            # Save as PNG (static)
-            fig.write_image(f"{output_dir}/{name}.png", width=1200, height=800)
-        
-        print(f"Charts exported to {output_dir}/")
+    def export_charts(self, charts: Dict, output_dir: str = "outputs/charts"):
+        """Export text summaries to files (no-op for compatibility)"""
+        # This method exists for compatibility but does nothing
+        # since we're now text-only
+        pass
 
 
-def create_summary_table(model_results: Dict) -> pd.DataFrame:
-    """Create executive summary table"""
-    
-    summary_data = {
-        'Metric': [
-            'Total Investment (3 years)',
-            'Total Value Created (3 years)',
-            'Net Present Value',
-            'ROI %',
-            'Payback Period (months)',
-            'Peak Adoption Rate',
-            'Cost per Developer (annual)',
-            'Value per Developer (annual)',
-            'Breakeven Month',
-            'Risk-Adjusted NPV (P50)'
-        ],
-        'Value': [
-            f"${model_results.get('total_cost_3y', 0):,.0f}",
-            f"${model_results.get('total_value_3y', 0):,.0f}",
-            f"${model_results.get('npv', 0):,.0f}",
-            f"{model_results.get('roi_percent', 0):.1f}%",
-            f"{model_results.get('payback_months', 'N/A')}",
-            f"{model_results.get('peak_adoption', 0)*100:.1f}%",
-            f"${model_results.get('annual_cost_per_dev', 0):,.0f}",
-            f"${model_results.get('annual_value_per_dev', 0):,.0f}",
-            f"{model_results.get('breakeven_month', 'N/A')}",
-            f"${model_results.get('risk_adjusted_npv', 0):,.0f}"
-        ]
-    }
-    
-    return pd.DataFrame(summary_data)
+# Utility functions for backward compatibility
+def plot_adoption_curve(*args, **kwargs):
+    """Compatibility function - returns empty dict"""
+    return {}
+
+
+def plot_cost_breakdown(*args, **kwargs):
+    """Compatibility function - returns empty dict"""  
+    return {}
+
+
+def plot_roi_timeline(*args, **kwargs):
+    """Compatibility function - returns empty dict"""
+    return {}
+
+
+def plot_value_components(*args, **kwargs):
+    """Compatibility function - returns empty dict"""
+    return {}
