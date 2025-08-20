@@ -80,8 +80,9 @@ class AIToolCosts:
         # Validate plateau month
         if self.token_plateau_month < 1:
             raise ValidationError(
-                field="token_plateau_month",
-                issue="must be at least 1",
+                field_name="token_plateau_month",
+                value=self.token_plateau_month,
+                expected="positive integer >= 1",
                 suggestion="Set token_plateau_month to a positive integer"
             )
 

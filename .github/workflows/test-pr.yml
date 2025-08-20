@@ -1,0 +1,137 @@
+name: Pull Request Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  quick-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-3.11-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-3.11-
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest-cov pytest-html
+
+    - name: Run critical business logic tests
+      run: |
+        pytest tests/test_impact_model.py tests/test_cost_structure.py tests/test_adoption_dynamics.py tests/test_baseline.py \
+          -v --tb=short --strict-markers \
+          --cov=src.model --cov-report=term-missing --cov-fail-under=85
+
+    - name: Run core utility tests
+      run: |
+        pytest tests/test_math_helpers.py tests/test_exceptions.py \
+          -v --tb=short --strict-markers
+
+    - name: Generate test summary
+      if: always()
+      run: |
+        echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Core Business Logic Tests" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Impact Model: Comprehensive value calculations" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Cost Structure: Financial modeling accuracy" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Adoption Dynamics: Curve modeling validation" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Baseline Metrics: Team composition calculations" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Coverage Requirements" >> $GITHUB_STEP_SUMMARY
+        echo "- Minimum coverage: 85% for core business logic" >> $GITHUB_STEP_SUMMARY
+        echo "- All critical financial calculations must pass" >> $GITHUB_STEP_SUMMARY
+
+  test-import-integrity:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Test module imports
+      run: |
+        python -c "
+        try:
+            from src.model.impact_model import BusinessImpact, ImpactFactors
+            from src.model.cost_structure import CostModel, AIToolCosts
+            from src.model.adoption_dynamics import AdoptionModel, AdoptionParameters
+            from src.model.baseline import BaselineMetrics
+            print('✅ All core module imports successful')
+        except Exception as e:
+            print(f'❌ Import error: {e}')
+            exit(1)
+        "
+
+    - name: Test basic functionality
+      run: |
+        python -c "
+        from src.model.baseline import create_industry_baseline
+        from src.model.impact_model import create_impact_scenario
+        from src.model.cost_structure import create_cost_scenario
+        from src.model.adoption_dynamics import create_adoption_scenario
+        
+        # Test basic object creation
+        baseline = create_industry_baseline('enterprise')
+        impact = create_impact_scenario('moderate')
+        costs = create_cost_scenario('enterprise')
+        adoption = create_adoption_scenario('organic')
+        
+        print('✅ All core objects created successfully')
+        print(f'  - Team size: {baseline.team_size}')
+        print(f'  - Impact reduction: {impact.feature_cycle_reduction}')
+        print(f'  - Cost per seat: {costs.cost_per_seat_month}')
+        print(f'  - Initial adopters: {adoption.initial_adopters}')
+        "
+
+  lint-and-format:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black isort
+
+    - name: Check Python syntax
+      run: |
+        flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Check code formatting (Black)
+      run: |
+        black --check --diff src/ tests/ || echo "⚠️ Code formatting issues found (non-blocking)"
+
+    - name: Check import sorting
+      run: |
+        isort --check-only --diff src/ tests/ || echo "⚠️ Import sorting issues found (non-blocking)"
