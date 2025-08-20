@@ -6,6 +6,8 @@ Creates console-friendly charts and summary tables.
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Optional
+from ..utils.math_helpers import safe_divide
+from ..utils.exceptions import CalculationError
 
 
 def create_summary_table(data: Dict, title: str = "Summary") -> str:
@@ -53,7 +55,12 @@ def create_ascii_chart(values: List[float], labels: List[str] = None,
     
     # Normalize values to chart width
     if max_val > min_val:
-        normalized = [(v - min_val) / (max_val - min_val) * width for v in values]
+        normalized = [safe_divide(
+            (v - min_val) * width,
+            (max_val - min_val),
+            default=width // 2,
+            context="chart normalization"
+        ) for v in values]
     else:
         normalized = [width // 2 for _ in values]
     
@@ -83,11 +90,21 @@ def create_timeline_chart(values: List[float], title: str = "Timeline",
     for i, val in enumerate(values):
         month = i + 1
         if val >= 0:
-            bar_len = int((val / max_val) * 30) if max_val > 0 else 0
+            bar_len = int(safe_divide(
+                val * 30,
+                max_val,
+                default=0,
+                context="positive bar length calculation"
+            )) if max_val > 0 else 0
             bar = "+" * bar_len
             chart += f"Month {month:2d} |{bar:<30} {format_currency(val)}\n"
         else:
-            bar_len = int((abs(val) / abs(min_val)) * 30) if min_val < 0 else 0
+            bar_len = int(safe_divide(
+                abs(val) * 30,
+                abs(min_val),
+                default=0,
+                context="negative bar length calculation"
+            )) if min_val < 0 else 0
             bar = "-" * bar_len
             chart += f"Month {month:2d} |{bar:<30} {format_currency(val)}\n"
     
@@ -131,7 +148,12 @@ class ModelVisualizer:
         breakdown = "COST BREAKDOWN\n"
         breakdown += "=" * 14 + "\n"
         breakdown += f"Total Investment      : {format_currency(total_costs)}\n"
-        breakdown += f"Monthly Average       : {format_currency(total_costs / len(costs['total']))}\n"
+        breakdown += f"Monthly Average       : {format_currency(safe_divide(
+            total_costs,
+            len(costs['total']),
+            default=0.0,
+            context="monthly average calculation"
+        ))}\n"
         
         if 'licensing' in costs:
             licensing_total = sum(costs['licensing'])
