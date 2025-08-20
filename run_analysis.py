@@ -20,11 +20,9 @@ from typing import List, Dict, Optional
 from io import StringIO
 import contextlib
 
-# Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-
 from main import AIImpactModel
-from utils.colors import *
+from src.utils.colors import *
+from src.utils.exceptions import ConfigurationError, ScenarioError, CalculationError, ValidationError
 
 
 class AnalysisRunner:
@@ -299,8 +297,33 @@ Examples:
         filename = runner.generate_filename(args.output)
         runner.save_and_display_results(formatted_content, filename)
         
+    except ConfigurationError as e:
+        print(error(f"❌ Configuration Error: {e}"))
+        if hasattr(e, 'suggestion') and e.suggestion:
+            print(warning(f"💡 Suggestion: {e.suggestion}"))
+        return 1
+    except ScenarioError as e:
+        print(error(f"❌ Scenario Error: {e}"))
+        if hasattr(e, 'available_scenarios') and e.available_scenarios:
+            print(info(f"Available scenarios: {', '.join(e.available_scenarios)}"))
+        return 1
+    except (CalculationError, ValidationError) as e:
+        print(error(f"❌ Model Error: {e}"))
+        if hasattr(e, 'context') and e.context:
+            print(warning(f"Context: {e.context}"))
+        return 1
+    except KeyboardInterrupt:
+        print(warning("\n⏹️  Analysis interrupted by user"))
+        return 130
+    except FileNotFoundError as e:
+        print(error(f"❌ File not found: {e}"))
+        return 2
+    except PermissionError as e:
+        print(error(f"❌ Permission denied: {e}"))
+        return 13
     except Exception as e:
-        print(error(f"❌ Error: {e}"))
+        print(error(f"❌ Unexpected error: {e}"))
+        print(warning("Please report this issue with the full error details."))
         return 1
 
 
