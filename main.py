@@ -10,6 +10,12 @@ import pandas as pd
 from typing import Dict, Optional, List
 import argparse
 from tabulate import tabulate
+import sys
+import os
+
+# Add src to path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+from utils.colors import *
 
 from src.model.baseline import BaselineMetrics, create_industry_baseline, calculate_opportunity_cost
 from src.model.impact_model import ImpactFactors, BusinessImpact, create_impact_scenario
@@ -37,9 +43,7 @@ class AIImpactModel:
     def run_scenario(self, scenario_name: str) -> Dict:
         """Run a complete scenario analysis"""
         
-        print(f"\n{'='*60}")
-        print(f"Running Scenario: {scenario_name}")
-        print(f"{'='*60}")
+        print(section_divider(f"Running Scenario: {scenario_name}"))
         
         config = self.load_scenario(scenario_name)
         months = config.get('timeframe_months', 24)
@@ -132,45 +136,51 @@ class AIImpactModel:
         return results
     
     def print_summary(self, results: Dict):
-        """Print summary of scenario results"""
+        """Print colorful summary of scenario results"""
         
-        print(f"\n{'-'*60}")
-        print(f"EXECUTIVE SUMMARY: {results['scenario_name']}")
-        print(f"{'-'*60}")
+        print(subsection_divider(f"EXECUTIVE SUMMARY: {results['scenario_name']}"))
         
-        summary_data = [
-            ["Team Size", f"{results['baseline'].team_size} developers"],
-            ["Timeframe", f"{results['config']['timeframe_months']} months"],
-            ["Peak Adoption", f"{results['peak_adoption']*100:.1f}%"],
-            [""],
-            ["FINANCIAL METRICS", ""],
-            ["Total Investment (3 years)", f"${results['total_cost_3y']:,.0f}"],
-            ["Total Value Created (3 years)", f"${results['total_value_3y']:,.0f}"],
-            ["Net Present Value", f"${results['npv']:,.0f}"],
-            ["ROI", f"{results['roi_percent']:.1f}%"],
-            ["Breakeven", f"Month {results['breakeven_month']}" if results['breakeven_month'] else "Not reached"],
-            [""],
-            ["PER DEVELOPER METRICS", ""],
-            ["Annual Cost per Developer", f"${results['annual_cost_per_dev']:,.0f}"],
-            ["Annual Value per Developer", f"${results['annual_value_per_dev']:,.0f}"],
-            [""],
-            ["VALUE BREAKDOWN", ""],
-            ["Time-to-Market Value", f"${results['impact_breakdown']['time_value']:,.0f}"],
-            ["Quality Improvement Value", f"${results['impact_breakdown']['quality_value']:,.0f}"],
-            ["Capacity Reallocation Value", f"${results['impact_breakdown']['capacity_value']:,.0f}"],
-            ["Strategic Value", f"${results['impact_breakdown']['strategic_value']:,.0f}"]
-        ]
+        # Key metrics with colors
+        print(f"{metric('Team Size'):<30} {info(str(results['baseline'].team_size) + ' developers')}")
+        print(f"{metric('Timeframe'):<30} {info(str(results['config']['timeframe_months']) + ' months')}")
+        print(f"{metric('Peak Adoption'):<30} {percentage(f'{results["peak_adoption"]*100:.1f}%')}")
+        print()
         
-        print(tabulate(summary_data, tablefmt="plain"))
+        # Financial metrics
+        print(header("FINANCIAL METRICS"))
+        print(f"{metric('Total Investment (3 years)'):<30} {format_currency(results['total_cost_3y'], positive_good=False)}")
+        print(f"{metric('Total Value Created (3 years)'):<30} {format_currency(results['total_value_3y'])}")
+        print(f"{metric('Net Present Value'):<30} {format_currency(results['npv'])}")
+        print(f"{metric('ROI'):<30} {format_percentage(results['roi_percent']/100)}")
+        
+        breakeven_text = f"Month {results['breakeven_month']}" if results['breakeven_month'] else "Not reached"
+        breakeven_color = success(breakeven_text) if results['breakeven_month'] and results['breakeven_month'] <= 12 else warning(breakeven_text)
+        print(f"{metric('Breakeven'):<30} {breakeven_color}")
+        print()
+        
+        # Per developer metrics
+        print(header("PER DEVELOPER METRICS"))
+        print(f"{metric('Annual Cost per Developer'):<30} {format_currency(results['annual_cost_per_dev'], positive_good=False)}")
+        print(f"{metric('Annual Value per Developer'):<30} {format_currency(results['annual_value_per_dev'])}")
+        print()
+        
+        # Value breakdown
+        print(header("VALUE BREAKDOWN"))
+        print(f"{metric('Time-to-Market Value'):<30} {format_currency(results['impact_breakdown']['time_value'])}")
+        print(f"{metric('Quality Improvement Value'):<30} {format_currency(results['impact_breakdown']['quality_value'])}")
+        print(f"{metric('Capacity Reallocation Value'):<30} {format_currency(results['impact_breakdown']['capacity_value'])}")
+        print(f"{metric('Strategic Value'):<30} {format_currency(results['impact_breakdown']['strategic_value'])}")
         
         # Print opportunity cost comparison
         opportunity = calculate_opportunity_cost(results['baseline'])
-        print(f"\n{'-'*60}")
-        print("OPPORTUNITY COST ANALYSIS")
-        print(f"{'-'*60}")
-        print(f"Current inefficiency cost: ${opportunity['total_opportunity_cost']:,.0f}/year")
-        print(f"AI tool value capture: ${results['impact_breakdown']['total_annual_value']:,.0f}/year")
-        print(f"Efficiency gain: {(results['impact_breakdown']['total_annual_value']/opportunity['total_opportunity_cost'])*100:.1f}%")
+        print()
+        print(header("OPPORTUNITY COST ANALYSIS"))
+        print(f"{metric('Current inefficiency cost'):<30} {error(f'${opportunity["total_opportunity_cost"]:,.0f}/year')}")
+        print(f"{metric('AI tool value capture'):<30} {success(f'${results["impact_breakdown"]["total_annual_value"]:,.0f}/year')}")
+        
+        efficiency_gain = (results['impact_breakdown']['total_annual_value']/opportunity['total_opportunity_cost'])*100
+        efficiency_color = success(f'{efficiency_gain:.1f}%') if efficiency_gain > 20 else warning(f'{efficiency_gain:.1f}%')
+        print(f"{metric('Efficiency gain'):<30} {efficiency_color}")
     
     def compare_scenarios(self, scenario_names: List[str] = None):
         """Compare multiple scenarios"""
@@ -197,9 +207,7 @@ class AIImpactModel:
             })
         
         df = pd.DataFrame(comparison_data)
-        print(f"\n{'='*80}")
-        print("SCENARIO COMPARISON")
-        print(f"{'='*80}")
+        print(section_divider("SCENARIO COMPARISON", 80))
         print(tabulate(df, headers='keys', tablefmt='grid', showindex=False))
         
         return df

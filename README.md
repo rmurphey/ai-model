@@ -39,7 +39,7 @@ python run_analysis.py --compare all
 ```
 ├── main.py                     # Main entry point
 ├── run_analysis.py             # Analysis script with export functionality
-├── requirements.txt            # Dependencies
+├── requirements.txt            # Dependencies (includes colorama for colors)
 ├── .claude/
 │   └── commands/
 │       ├── analyze             # Claude command executable
@@ -51,6 +51,8 @@ python run_analysis.py --compare all
 │   │   ├── impact_model.py    # Value calculations
 │   │   ├── cost_structure.py  # Cost modeling
 │   │   └── visualizations.py  # Text-based utilities
+│   ├── utils/                 # Utility modules
+│   │   └── colors.py          # Console color formatting
 │   ├── scenarios/             # Scenario configurations
 │   │   └── scenarios.yaml     # Scenario definitions
 │   └── analysis/              # Additional analysis tools
@@ -187,13 +189,22 @@ All analyses automatically generate timestamped reports in `outputs/reports/`:
 - **Custom names**: Use `--output filename.txt` for custom naming
 - **Content**: Executive summaries, financial metrics, value breakdowns
 
-#### Report Contents
+#### Report Contents and Formatting
 Each exported report includes:
 - **Executive Summary**: Key metrics, NPV, ROI, breakeven analysis
 - **Financial Breakdown**: 3-year investment vs value, per-developer costs
 - **Value Analysis**: Time, quality, capacity, and strategic value components
 - **Adoption Metrics**: Peak adoption rates, efficiency curves
 - **Opportunity Cost Analysis**: Current inefficiency vs AI tool value capture
+
+**Output Formats:**
+- **Saved Files**: Clean markdown format with headers, lists, and formatting
+- **Console Output**: Colorful plaintext with ANSI colors for readability
+  - 🟢 Green for positive metrics (NPV, value, gains)
+  - 🔴 Red for costs and negative values
+  - 🔵 Blue for headers and section titles
+  - 🟡 Yellow for percentages and warnings
+  - 🔷 Cyan for file paths and highlights
 
 #### Direct Script Usage
 For more control, use the analysis script directly:
