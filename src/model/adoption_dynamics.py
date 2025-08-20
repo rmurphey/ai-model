@@ -82,9 +82,15 @@ class AdoptionParameters:
         # Logical validations
         if self.initial_efficiency >= self.plateau_efficiency:
             raise ValidationError(
-                field="efficiency parameters",
-                issue="initial_efficiency must be less than plateau_efficiency",
-                suggestion="Ensure initial_efficiency < plateau_efficiency for realistic learning curves"
+                field_name="efficiency_parameters",
+                value=f"initial: {self.initial_efficiency}, plateau: {self.plateau_efficiency}",
+                expected="initial_efficiency < plateau_efficiency",
+                suggestion="Learning curves require initial efficiency to be lower than final plateau",
+                valid_examples=[
+                    "initial_efficiency: 0.3, plateau_efficiency: 0.8",
+                    "initial_efficiency: 0.5, plateau_efficiency: 0.9",
+                    "initial_efficiency: 0.2, plateau_efficiency: 0.7"
+                ]
             )
 
 
