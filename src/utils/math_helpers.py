@@ -30,7 +30,13 @@ def safe_divide(numerator: Union[float, np.ndarray],
     if isinstance(denominator, (int, float)):
         if denominator == 0:
             if context:
-                print(f"Warning: Division by zero in {context}, using default value {default}")
+                import warnings
+                warnings.warn(
+                    f"Division by zero in {context}, using default value {default}. "
+                    f"Consider checking input data for zero denominators.",
+                    UserWarning,
+                    stacklevel=2
+                )
             return default
         return numerator / denominator
     
@@ -40,7 +46,13 @@ def safe_divide(numerator: Union[float, np.ndarray],
         
         zero_count = np.sum(denominator == 0)
         if zero_count > 0 and context:
-            print(f"Warning: {zero_count} zero values in {context}, using default value {default}")
+            import warnings
+            warnings.warn(
+                f"{zero_count} zero values in {context}, using default value {default}. "
+                f"Consider validating input data to avoid division by zero.",
+                UserWarning,
+                stacklevel=2
+            )
         
         return result
     
@@ -139,7 +151,13 @@ def safe_mean(values: np.ndarray,
     """
     if len(values) == 0:
         if context:
-            print(f"Warning: Empty array in mean calculation ({context}), using default {default}")
+            import warnings
+            warnings.warn(
+                f"Empty array in mean calculation ({context}), using default {default}. "
+                f"Check data filtering or loading logic.",
+                UserWarning,
+                stacklevel=2
+            )
         return default
     
     return np.mean(values)
@@ -159,7 +177,13 @@ def safe_sum(values: np.ndarray,
     """
     if len(values) == 0:
         if context:
-            print(f"Warning: Empty array in sum calculation ({context}), returning 0")
+            import warnings
+            warnings.warn(
+                f"Empty array in sum calculation ({context}), returning 0. "
+                f"Verify data loading and filtering steps.",
+                UserWarning,
+                stacklevel=2
+            )
         return 0.0
     
     return np.sum(values)
@@ -205,7 +229,13 @@ def safe_log(value: Union[float, np.ndarray],
     if isinstance(value, (int, float)):
         if value <= 0:
             if context:
-                print(f"Warning: Non-positive value in log calculation ({context}), using default {default}")
+                import warnings
+                warnings.warn(
+                    f"Non-positive value in log calculation ({context}), using default {default}. "
+                    f"Ensure input values are positive before taking logarithm.",
+                    UserWarning,
+                    stacklevel=2
+                )
             return default
         return np.log(value)
     
@@ -214,7 +244,13 @@ def safe_log(value: Union[float, np.ndarray],
         
         invalid_count = np.sum(value <= 0)
         if invalid_count > 0 and context:
-            print(f"Warning: {invalid_count} non-positive values in log calculation ({context}), using default {default}")
+            import warnings
+            warnings.warn(
+                f"{invalid_count} non-positive values in log calculation ({context}), using default {default}. "
+                f"Validate input data to ensure all values are positive.",
+                UserWarning,
+                stacklevel=2
+            )
         
         return result
     
