@@ -67,8 +67,12 @@ class AnalysisRunner:
         print(info(f"🔄 Running scenario: {scenario_name}"))
         
         if scenario_name not in self.get_available_scenarios():
-            available = ", ".join(self.get_available_scenarios())
-            raise ValueError(f"Scenario '{scenario_name}' not found. Available: {available}")
+            raise ScenarioError(
+                scenario_name=scenario_name,
+                issue="not found in configuration",
+                available_scenarios=self.get_available_scenarios(),
+                config_file="src/scenarios/scenarios.yaml"
+            )
         
         results, output = self.capture_scenario_output(scenario_name)
         print(success("✅ Scenario completed"))
@@ -269,7 +273,10 @@ Examples:
     # Validate arguments
     if not args.scenarios and not args.compare:
         print(error("❌ Error: Must specify scenarios or use --compare"))
-        print(info("Use --list to see available scenarios"))
+        print(info("💡 Quick start:"))
+        print(info("   • python run_analysis.py --list          (see available scenarios)"))
+        print(info("   • python run_analysis.py moderate_enterprise  (run single scenario)"))
+        print(info("   • python run_analysis.py --compare all   (compare all scenarios)"))
         parser.print_help()
         return
     
@@ -298,32 +305,41 @@ Examples:
         runner.save_and_display_results(formatted_content, filename)
         
     except ConfigurationError as e:
-        print(error(f"❌ Configuration Error: {e}"))
-        if hasattr(e, 'suggestion') and e.suggestion:
-            print(warning(f"💡 Suggestion: {e.suggestion}"))
+        print(error(f"❌ {e}"))
+        print(warning("\n🆘 Need help? Check the project documentation or create an issue."))
         return 1
     except ScenarioError as e:
-        print(error(f"❌ Scenario Error: {e}"))
-        if hasattr(e, 'available_scenarios') and e.available_scenarios:
-            print(info(f"Available scenarios: {', '.join(e.available_scenarios)}"))
+        print(error(f"❌ {e}"))
+        print(warning("\n🆘 Need help? Use 'python run_analysis.py --list' to see available scenarios."))
         return 1
     except (CalculationError, ValidationError) as e:
-        print(error(f"❌ Model Error: {e}"))
-        if hasattr(e, 'context') and e.context:
-            print(warning(f"Context: {e.context}"))
+        print(error(f"❌ {e}"))
+        print(warning("\n🆘 Need help? This may be a model configuration issue. Please check input parameters."))
         return 1
     except KeyboardInterrupt:
         print(warning("\n⏹️  Analysis interrupted by user"))
         return 130
     except FileNotFoundError as e:
         print(error(f"❌ File not found: {e}"))
+        print(warning("🔧 Resolution Steps:"))
+        print(warning("   1. Check if the file path is correct"))
+        print(warning("   2. Ensure you're running from the project root directory"))
+        print(warning("   3. Verify all required files are present"))
         return 2
     except PermissionError as e:
         print(error(f"❌ Permission denied: {e}"))
+        print(warning("🔧 Resolution Steps:"))
+        print(warning("   1. Check file permissions (ls -la)"))
+        print(warning("   2. Ensure you have read/write access to the directory"))
+        print(warning("   3. Try running with appropriate permissions"))
         return 13
     except Exception as e:
         print(error(f"❌ Unexpected error: {e}"))
-        print(warning("Please report this issue with the full error details."))
+        print(warning("🔧 Resolution Steps:"))
+        print(warning("   1. Check Python version compatibility (>=3.8)"))
+        print(warning("   2. Verify all dependencies are installed (pip install -r requirements.txt)"))
+        print(warning("   3. Try running with --verbose flag if available"))
+        print(warning("   4. Report this issue with full error details if problem persists"))
         return 1
 
 
