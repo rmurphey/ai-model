@@ -26,7 +26,10 @@ from src.utils.colors import *
 from src.utils.exceptions import ConfigurationError, ScenarioError, CalculationError, ValidationError
 from src.model.baseline import calculate_opportunity_cost
 from src.analysis.terminal_visualizations import create_sparkline
+from src.analysis.sensitivity_analysis import SobolAnalyzer, create_sensitivity_report, perform_sensitivity_analysis
 from src.config.version import get_current_version_string
+from src.model.monte_carlo import create_parameter_distributions_from_scenario
+from src.batch.batch_processor import BatchConfig, BatchProcessor, run_batch_from_config
 import numpy as np
 
 
@@ -389,6 +392,78 @@ First 12 months progression:
         
         return markdown
     
+    def run_sensitivity_analysis(self, scenario_name: str, n_samples: int = 512) -> tuple[Dict, str]:
+        """
+        Run sensitivity analysis for a scenario.
+        
+        Args:
+            scenario_name: Scenario to analyze
+            n_samples: Number of samples for Sobol analysis
+            
+        Returns:
+            Tuple of (results dict, markdown report)
+        """
+        print(f"\n{info('Running sensitivity analysis for:')} {scenario_name}")
+        print(f"  Samples: {n_samples}")
+        print("  This may take a few moments...")
+        
+        # Load scenario configuration
+        scenario_config = self.model.load_scenario(scenario_name)
+        
+        # Create parameter distributions
+        distributions = create_parameter_distributions_from_scenario(scenario_config)
+        
+        # Define model function for sensitivity analysis
+        def model_func(params: Dict[str, float]) -> float:
+            """Wrapper function that returns NPV for given parameters"""
+            # Create a modified scenario config with the sampled parameters
+            modified_config = scenario_config.copy()
+            
+            # Update config with sampled parameters
+            for param_name, value in params.items():
+                # Parse parameter path (e.g., "baseline.team_size")
+                parts = param_name.split('.')
+                if len(parts) == 2:
+                    section, field = parts
+                    if section in modified_config:
+                        if not isinstance(modified_config[section], dict):
+                            modified_config[section] = {}
+                        modified_config[section][field] = value
+            
+            # Run scenario with modified parameters
+            try:
+                # Use the model's internal calculation without printing
+                results = self.model._run_scenario_cached(scenario_name)
+                return results.get('npv', 0)
+            except Exception:
+                return 0  # Return 0 for failed evaluations
+        
+        # Perform sensitivity analysis
+        analyzer = SobolAnalyzer(model_func, distributions)
+        results = analyzer.calculate_indices(n_samples, calc_second_order=True)
+        
+        # Generate report
+        report = create_sensitivity_report(results)
+        
+        # Add visualizations
+        report += "\n\n## Sensitivity Tornado Chart\n\n"
+        report += "```\n"
+        report += "Parameter Importance (sorted by total effect):\n\n"
+        
+        sorted_params = sorted(results.total_indices.items(), 
+                             key=lambda x: x[1], reverse=True)[:15]
+        
+        max_index = max(results.total_indices.values()) if results.total_indices else 1
+        
+        for param, index in sorted_params:
+            bar_width = int(40 * index / max_index) if max_index > 0 else 0
+            bar = "█" * bar_width + "░" * (40 - bar_width)
+            report += f"{param:30} │ {bar} │ {index:.3f}\n"
+        
+        report += "```\n"
+        
+        return results, report
+    
     def _calculate_opportunity_cost(self, baseline) -> float:
         """Calculate opportunity cost from baseline"""
         opportunity = calculate_opportunity_cost(baseline)
@@ -635,6 +710,14 @@ Examples:
                        help='Custom output filename')
     parser.add_argument('--list', '-l', action='store_true',
                        help='List available scenarios')
+    parser.add_argument('--sensitivity', '-s', action='store_true',
+                       help='Run sensitivity analysis for scenarios')
+    parser.add_argument('--sensitivity-samples', type=int, default=512,
+                       help='Number of samples for sensitivity analysis (default: 512)')
+    parser.add_argument('--batch', '-b', type=str,
+                       help='Path to batch configuration YAML file')
+    parser.add_argument('--batch-workers', type=int, default=4,
+                       help='Number of parallel workers for batch processing (default: 4)')
     
     args = parser.parse_args()
     
@@ -649,16 +732,81 @@ Examples:
         return
     
     # Validate arguments
-    if not args.scenarios and not args.compare:
-        print(error("❌ Error: Must specify scenarios or use --compare"))
+    if not args.scenarios and not args.compare and not args.batch:
+        print(error("❌ Error: Must specify scenarios, use --compare, or --batch"))
         print(info("💡 Quick start:"))
         print(info("   • python run_analysis.py --list          (see available scenarios)"))
         print(info("   • python run_analysis.py moderate_enterprise  (run single scenario)"))
         print(info("   • python run_analysis.py --compare all   (compare all scenarios)"))
+        print(info("   • python run_analysis.py --batch batch_config.yaml  (batch processing)"))
         parser.print_help()
         return
     
     try:
+        # Run batch processing if requested
+        if args.batch:
+            print(header("Batch Processing Mode"))
+            
+            # Load or create batch config
+            if os.path.exists(args.batch):
+                # Load from file
+                config = BatchConfig.from_yaml(args.batch)
+            else:
+                # Create config from command line scenarios
+                config = BatchConfig(
+                    scenarios=args.scenarios if args.scenarios else ['moderate_enterprise'],
+                    parallel_workers=args.batch_workers,
+                    output_dir=args.output or 'outputs/batch'
+                )
+            
+            # Run batch processing
+            processor = BatchProcessor(config)
+            results, report = processor.run()
+            
+            # Print summary
+            print()
+            print(header("Batch Processing Complete"))
+            successful = sum(1 for r in results if r.success)
+            print(f"Processed {len(results)} scenarios: {successful} successful")
+            
+            return
+        
+        # Run sensitivity analysis if requested
+        if args.sensitivity:
+            scenarios_to_analyze = args.scenarios if args.scenarios else ['moderate_enterprise']
+            
+            for scenario in scenarios_to_analyze:
+                print(header(f"Sensitivity Analysis: {scenario}"))
+                
+                try:
+                    results, report = runner.run_sensitivity_analysis(
+                        scenario, 
+                        n_samples=args.sensitivity_samples
+                    )
+                    
+                    # Save sensitivity report
+                    filename = runner.generate_filename(
+                        f"sensitivity_{scenario}.md" if args.output is None else args.output
+                    )
+                    
+                    with open(filename, 'w') as f:
+                        f.write(report)
+                    
+                    print(f"\n{success('✓')} Sensitivity analysis saved to: {info(filename)}")
+                    print("\nKey findings:")
+                    
+                    # Show top 5 most important parameters
+                    sorted_params = sorted(results.first_order_indices.items(), 
+                                         key=lambda x: x[1], reverse=True)[:5]
+                    
+                    for i, (param, index) in enumerate(sorted_params, 1):
+                        print(f"  {i}. {param}: {index:.3f}")
+                    
+                except Exception as e:
+                    print(f"{error('✗')} Error running sensitivity analysis: {e}")
+            
+            return
+        
         # Determine analysis type and run
         if args.compare:
             analysis_type = "Scenario Comparison"
