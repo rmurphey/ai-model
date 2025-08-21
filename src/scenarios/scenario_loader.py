@@ -6,7 +6,9 @@ import os
 import yaml
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+from functools import lru_cache
 from ..utils.exceptions import ConfigurationError
+from ..utils.cache import smart_cache, memoized_method
 
 
 class ScenarioLoader:
@@ -42,6 +44,7 @@ class ScenarioLoader:
                 ]
             )
     
+    @memoized_method(maxsize=32)
     def load_all_scenarios(self) -> Dict[str, Any]:
         """Load all available scenarios."""
         if self.mode == 'legacy':
@@ -72,6 +75,7 @@ class ScenarioLoader:
             self._cache[name] = scenario
             return scenario
     
+    @smart_cache
     def _load_legacy_file(self) -> Dict[str, Any]:
         """Load scenarios from legacy single YAML file."""
         try:

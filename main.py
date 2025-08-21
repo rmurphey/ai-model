@@ -16,6 +16,7 @@ import os
 from src.utils.colors import *
 from src.utils.exceptions import ConfigurationError, ScenarioError, CalculationError
 from src.utils.math_helpers import safe_divide
+from src.utils.cache import cached_result, get_cache_statistics, cache_key_from_dict
 from src.config.constants import DEFAULT_DISCOUNT_RATE_ANNUAL, MONTHS_PER_YEAR
 
 from src.model.baseline import BaselineMetrics, create_industry_baseline, calculate_opportunity_cost
@@ -173,6 +174,13 @@ class AIImpactModel:
         """Run a complete scenario analysis"""
         
         print(section_divider(f"Running Scenario: {scenario_name}"))
+        
+        # Use cached computation for the actual work
+        return self._run_scenario_cached(scenario_name)
+    
+    @cached_result(ttl_seconds=3600)
+    def _run_scenario_cached(self, scenario_name: str) -> Dict:
+        """Cached scenario computation (no side effects)"""
         
         config = self.load_scenario(scenario_name)
         months = config.get('timeframe_months', 24)
@@ -608,8 +616,14 @@ def main():
                        help='Random seed for reproducibility')
     parser.add_argument('--scenario-file', default='src/scenarios/scenarios.yaml',
                        help='Path to scenario configuration file')
+    parser.add_argument('--no-cache', action='store_true', help='Disable result caching')
+    parser.add_argument('--cache-stats', action='store_true', help='Show cache statistics')
     
     args = parser.parse_args()
+    
+    # Disable caching if requested
+    if args.no_cache:
+        os.environ['AI_IMPACT_CACHE_ENABLED'] = 'false'
     
     # Initialize model
     model = AIImpactModel(scenario_file=args.scenario_file)
@@ -675,6 +689,14 @@ def main():
                     model.run_scenario(scenario)
             
             model.compare_scenarios(standard_scenarios)
+    
+    # Show cache statistics if requested
+    if args.cache_stats:
+        cache_stats = get_cache_statistics()
+        print()
+        print(section_divider("Cache Statistics"))
+        print(cache_stats)
+        print(f"  Details: {cache_stats.to_dict()}")
 
 
 if __name__ == "__main__":
