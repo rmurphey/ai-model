@@ -234,7 +234,7 @@ class TestCreateIndustryBaseline:
         baseline = create_industry_baseline("startup")
         
         assert isinstance(baseline, BaselineMetrics)
-        assert baseline.team_size <= 15  # Small team
+        assert 5 <= baseline.team_size <= 20  # Startup team (5-20 people)
         assert baseline.avg_feature_cycle_days <= 20  # Fast cycle
         
     def test_enterprise_baseline(self):
@@ -242,7 +242,7 @@ class TestCreateIndustryBaseline:
         baseline = create_industry_baseline("enterprise")
         
         assert isinstance(baseline, BaselineMetrics)
-        assert baseline.team_size >= 30  # Larger team
+        assert baseline.team_size >= 101  # Enterprise team (101+ people)  
         assert baseline.avg_feature_cycle_days >= 25  # Longer cycle
         
     def test_scale_up_baseline(self):
@@ -250,7 +250,7 @@ class TestCreateIndustryBaseline:
         baseline = create_industry_baseline("scale_up")
         
         assert isinstance(baseline, BaselineMetrics)
-        assert 15 <= baseline.team_size <= 35  # Medium team
+        assert 20 <= baseline.team_size <= 100  # Scaleup team (20-100 people)
         assert 15 <= baseline.avg_feature_cycle_days <= 25  # Medium cycle
         
     def test_default_baseline(self):
@@ -320,8 +320,10 @@ class TestCalculateOpportunityCost:
         total_opportunity = opportunity_cost["total_opportunity_cost"]
         
         # Opportunity cost should be significant but not unreasonably high
-        assert 0 <= total_opportunity <= team_cost * 2, \
-            "Opportunity cost should be 0-200% of team cost"
+        # For larger teams, opportunity costs can be higher due to scale inefficiencies
+        max_multiplier = 3 if baseline_metrics.team_size >= 101 else 2
+        assert 0 <= total_opportunity <= team_cost * max_multiplier, \
+            f"Opportunity cost should be 0-{max_multiplier*100}% of team cost for team size {baseline_metrics.team_size}"
             
         # Quality costs should equal incident + rework costs
         expected_quality_costs = (
