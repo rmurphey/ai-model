@@ -95,14 +95,15 @@ class ModelVersion:
 
 
 # Current model version
-CURRENT_VERSION = ModelVersion(2, 0, 1)
+CURRENT_VERSION = ModelVersion(2, 0, 2)
 
 # List of supported versions for reproduction
 SUPPORTED_VERSIONS = [
     ModelVersion(1, 0, 0),
     ModelVersion(1, 1, 0),
     ModelVersion(2, 0, 0),
-    ModelVersion(2, 0, 1)
+    ModelVersion(2, 0, 1),
+    ModelVersion(2, 0, 2)
 ]
 
 # Version history and breaking changes
@@ -143,6 +144,19 @@ VERSION_HISTORY = {
             "Bounded cost projections (capped at 100x initial or 50% FLC)",
             "Improved long-term stability for 36+ month projections",
             "Tests for extreme growth scenarios and numerical stability"
+        ]
+    },
+    "2.0.2": {
+        "release_date": "2025-08-21",
+        "description": "Fix financial calculations and add comprehensive test coverage",
+        "breaking_changes": [],
+        "new_features": [
+            "Fixed CalculationError calls in financial_calculations module",
+            "Replaced deprecated np.irr with numpy_financial for IRR calculations",
+            "Fixed boundary conditions for negative discount rates in NPV",
+            "Added comprehensive test suite for financial calculations (61 tests)",
+            "Added Monte Carlo convergence tests (14 tests)",
+            "Improved accuracy of financial calculations to match industry standards"
         ]
     }
 }
