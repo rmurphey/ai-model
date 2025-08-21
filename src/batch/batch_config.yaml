@@ -1,0 +1,37 @@
+# Example Batch Processing Configuration
+# This file defines scenarios to process in batch mode
+
+# List of scenarios to process
+scenarios:
+  - conservative_startup
+  - moderate_startup
+  - aggressive_startup
+  - conservative_scaleup
+  - moderate_scaleup
+  - aggressive_scaleup
+  - conservative_enterprise
+  - moderate_enterprise
+  - aggressive_enterprise
+
+# Number of parallel workers (0 = auto-detect CPU count)
+parallel_workers: 4
+
+# Output format: markdown, json, or csv
+output_format: markdown
+
+# Directory for output files
+output_dir: outputs/batch
+
+# Generate comparison report across all scenarios
+generate_comparison: true
+
+# Include Monte Carlo analysis for each scenario
+include_monte_carlo: false
+monte_carlo_iterations: 1000
+
+# Include sensitivity analysis for each scenario
+include_sensitivity: false
+sensitivity_samples: 512
+
+# Save individual reports for each scenario
+save_individual_reports: true
