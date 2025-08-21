@@ -1,0 +1,22 @@
+# Conservative Startup Scenario
+# 10-person startup with cautious AI adoption
+
+name: Conservative Startup
+description: Small startup team taking a risk-averse approach to AI tools
+
+# Compose from base profiles and strategies
+extends:
+  - profiles/startup
+  - strategies/conservative
+
+# Startup-specific adjustments
+costs:
+  cost_per_seat_month: 30
+  enterprise_discount: 0.0
+  infrastructure_setup: 2000
+  infrastructure_monthly: 200
+
+economic:
+  discount_rate_annual: 0.15  # Higher discount rate for startups
+
+timeframe_months: 24

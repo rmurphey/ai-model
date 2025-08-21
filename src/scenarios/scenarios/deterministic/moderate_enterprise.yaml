@@ -1,0 +1,19 @@
+# Moderate Enterprise Scenario
+# 50-person enterprise team with balanced AI adoption
+
+name: Moderate Enterprise
+description: Established enterprise team taking a balanced approach to AI adoption
+
+# Compose from base profiles and strategies
+extends:
+  - profiles/enterprise
+  - strategies/moderate
+
+# Override specific values if needed
+adoption:
+  scenario: organic  # Use organic adoption pattern
+
+economic:
+  discount_rate_annual: 0.10
+
+timeframe_months: 36

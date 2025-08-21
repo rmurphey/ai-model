@@ -1,0 +1,40 @@
+# Scaleup Company Profile
+# Base metrics for a 25-person scaleup team
+
+name: Scaleup Profile
+description: Growing team balancing speed with emerging process needs
+
+baseline:
+  team_size: 25
+  
+  # Team composition
+  junior_ratio: 0.4
+  mid_ratio: 0.4
+  senior_ratio: 0.2
+  
+  # Compensation
+  junior_flc: 120000
+  mid_flc: 165000
+  senior_flc: 220000
+  
+  # Development metrics
+  avg_feature_cycle_days: 18
+  avg_bug_fix_hours: 5
+  onboarding_days: 21
+  avg_pr_review_hours: 3
+  
+  # Quality metrics
+  defect_escape_rate: 6.0  # defects per KLOC
+  production_incidents_per_month: 6
+  avg_incident_cost: 8000
+  rework_percentage: 0.18
+  
+  # Capacity metrics
+  effective_capacity_hours: 1600  # per developer per year
+  new_feature_percentage: 0.45
+  maintenance_percentage: 0.35
+  tech_debt_percentage: 0.12
+  other_percentage: 0.08
+  
+  # Delivery metrics
+  feature_delivery_rate: 16  # features per dev per year

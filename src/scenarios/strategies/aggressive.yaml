@@ -1,0 +1,92 @@
+# Aggressive Strategy
+# Optimistic approach with high expectations and fast adoption
+
+name: Aggressive Strategy
+description: High-risk, high-reward approach with ambitious targets
+
+adoption:
+  # Adoption curve parameters
+  initial_adopters: 0.10
+  early_adopters: 0.20
+  early_majority: 0.30
+  late_majority: 0.25
+  laggards: 0.15
+  
+  # Adoption dynamics
+  training_effectiveness: 0.4
+  peer_influence: 0.9
+  management_mandate: 0.1
+  initial_resistance: 0.3
+  dropout_rate_month: 0.015
+  re_engagement_rate: 0.04
+  
+  # Learning curve
+  initial_efficiency: 0.4
+  learning_rate: 0.4
+  plateau_efficiency: 0.90
+  
+  # Segment multipliers
+  junior_adoption_multiplier: 1.5
+  mid_adoption_multiplier: 1.2
+  senior_adoption_multiplier: 0.6
+
+impact:
+  # Time improvements
+  feature_cycle_reduction: 0.40
+  bug_fix_reduction: 0.50
+  onboarding_reduction: 0.60
+  pr_review_reduction: 0.70
+  
+  # Quality improvements
+  defect_reduction: 0.45
+  incident_reduction: 0.40
+  rework_reduction: 0.60
+  
+  # Capacity gains
+  feature_capacity_gain: 0.15
+  tech_debt_capacity_gain: 0.08
+  
+  # Task effectiveness
+  boilerplate_effectiveness: 0.95
+  test_generation_effectiveness: 0.85
+  documentation_effectiveness: 0.90
+  code_review_effectiveness: 0.75
+  debugging_effectiveness: 0.70
+  
+  # Developer multipliers
+  junior_multiplier: 1.8
+  mid_multiplier: 1.5
+  senior_multiplier: 1.3
+
+costs:
+  # Licensing
+  cost_per_seat_month: 100
+  enterprise_discount: 0.2
+  
+  # Token usage
+  initial_tokens_per_dev_month: 1000000
+  token_price_per_million: 6
+  token_price_decline_annual: 0.35
+  token_growth_rate_monthly: 0.20
+  token_plateau_month: 6
+  
+  # Training
+  initial_training_cost_per_dev: 3000
+  ongoing_training_cost_annual: 1000
+  trainer_cost_per_day: 2500
+  training_days_initial: 7
+  training_days_ongoing_annual: 4
+  
+  # Infrastructure
+  infrastructure_setup: 20000
+  infrastructure_monthly: 2000
+  admin_overhead_percentage: 0.03
+  
+  # Hidden costs
+  context_switch_cost_month: 2000
+  bad_code_cleanup_percentage: 0.10
+  security_review_overhead: 3
+  
+  # Experimentation
+  pilot_budget: 50000
+  ongoing_experimentation: 25000

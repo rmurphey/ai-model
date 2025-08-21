@@ -1,0 +1,92 @@
+# Moderate Strategy
+# Balanced approach with realistic expectations
+
+name: Moderate Strategy
+description: Balanced risk-reward approach with proven adoption patterns
+
+adoption:
+  # Adoption curve parameters
+  initial_adopters: 0.05
+  early_adopters: 0.15
+  early_majority: 0.35
+  late_majority: 0.30
+  laggards: 0.15
+  
+  # Adoption dynamics
+  training_effectiveness: 0.5
+  peer_influence: 0.7
+  management_mandate: 0.3
+  initial_resistance: 0.4
+  dropout_rate_month: 0.02
+  re_engagement_rate: 0.03
+  
+  # Learning curve
+  initial_efficiency: 0.3
+  learning_rate: 0.3
+  plateau_efficiency: 0.85
+  
+  # Segment multipliers
+  junior_adoption_multiplier: 1.3
+  mid_adoption_multiplier: 1.0
+  senior_adoption_multiplier: 0.7
+
+impact:
+  # Time improvements
+  feature_cycle_reduction: 0.25
+  bug_fix_reduction: 0.35
+  onboarding_reduction: 0.40
+  pr_review_reduction: 0.50
+  
+  # Quality improvements
+  defect_reduction: 0.30
+  incident_reduction: 0.25
+  rework_reduction: 0.40
+  
+  # Capacity gains
+  feature_capacity_gain: 0.10
+  tech_debt_capacity_gain: 0.05
+  
+  # Task effectiveness
+  boilerplate_effectiveness: 0.85
+  test_generation_effectiveness: 0.70
+  documentation_effectiveness: 0.80
+  code_review_effectiveness: 0.60
+  debugging_effectiveness: 0.50
+  
+  # Developer multipliers
+  junior_multiplier: 1.5
+  mid_multiplier: 1.3
+  senior_multiplier: 1.2
+
+costs:
+  # Licensing
+  cost_per_seat_month: 50
+  enterprise_discount: 0.3
+  
+  # Token usage
+  initial_tokens_per_dev_month: 500000
+  token_price_per_million: 8
+  token_price_decline_annual: 0.25
+  token_growth_rate_monthly: 0.10
+  token_plateau_month: 12
+  
+  # Training
+  initial_training_cost_per_dev: 2000
+  ongoing_training_cost_annual: 500
+  trainer_cost_per_day: 2000
+  training_days_initial: 5
+  training_days_ongoing_annual: 2
+  
+  # Infrastructure
+  infrastructure_setup: 50000
+  infrastructure_monthly: 5000
+  admin_overhead_percentage: 0.05
+  
+  # Hidden costs
+  context_switch_cost_month: 1000
+  bad_code_cleanup_percentage: 0.08
+  security_review_overhead: 4
+  
+  # Experimentation
+  pilot_budget: 100000
+  ongoing_experimentation: 50000

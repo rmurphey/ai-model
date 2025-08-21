@@ -1,0 +1,40 @@
+# Enterprise Company Profile
+# Base metrics for a 50-person enterprise team
+
+name: Enterprise Profile
+description: Large team with established processes and higher overhead
+
+baseline:
+  team_size: 50
+  
+  # Team composition
+  junior_ratio: 0.3
+  mid_ratio: 0.5
+  senior_ratio: 0.2
+  
+  # Compensation
+  junior_flc: 130000
+  mid_flc: 180000
+  senior_flc: 250000
+  
+  # Development metrics
+  avg_feature_cycle_days: 21
+  avg_bug_fix_hours: 6
+  onboarding_days: 30
+  avg_pr_review_hours: 4
+  
+  # Quality metrics
+  defect_escape_rate: 5.0  # defects per KLOC
+  production_incidents_per_month: 8
+  avg_incident_cost: 10000
+  rework_percentage: 0.15
+  
+  # Capacity metrics
+  effective_capacity_hours: 1600  # per developer per year
+  new_feature_percentage: 0.4
+  maintenance_percentage: 0.4
+  tech_debt_percentage: 0.15
+  other_percentage: 0.05
+  
+  # Delivery metrics
+  feature_delivery_rate: 14  # features per dev per year
