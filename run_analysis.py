@@ -358,7 +358,8 @@ First 12 months progression:
             markdown += f"### {i+1}. {scenario_name}\n\n"
             markdown += f"- **NPV**: ${results['npv']:,.0f}\n"
             markdown += f"- **ROI**: {results['roi_percent']:.1f}%\n"
-            markdown += f"- **Breakeven**: {"Month " + str(results['breakeven_month']) if results['breakeven_month'] else "Not reached"}\n"
+            breakeven_text = f"Month {results['breakeven_month']}" if results['breakeven_month'] else "Not reached"
+            markdown += f"- **Breakeven**: {breakeven_text}\n"
             markdown += f"- **Peak Adoption**: {results['peak_adoption']*100:.1f}%\n\n"
         
         return markdown
