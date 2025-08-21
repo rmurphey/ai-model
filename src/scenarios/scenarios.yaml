@@ -1,6 +1,6 @@
 conservative_startup:
   name: Conservative Startup
-  description: 10-person startup with cautious AI adoption
+  description: startup team (5-20 people) with cautious AI adoption
   baseline:
     profile: startup
   adoption:
@@ -12,7 +12,7 @@ conservative_startup:
   timeframe_months: 24
 moderate_startup:
   name: Moderate Startup
-  description: 10-person startup with balanced adoption approach
+  description: startup team (5-20 people) with balanced adoption approach
   baseline:
     profile: startup
   adoption:
@@ -24,7 +24,7 @@ moderate_startup:
   timeframe_months: 24
 aggressive_startup:
   name: Aggressive Startup
-  description: 10-person startup with all-in on AI
+  description: startup team (5-20 people) with all-in on AI
   baseline:
     profile: startup
   adoption:
@@ -36,7 +36,7 @@ aggressive_startup:
   timeframe_months: 24
 conservative_enterprise:
   name: Conservative Enterprise
-  description: 50-person enterprise with cautious AI adoption
+  description: enterprise team (101+ people) with cautious AI adoption
   baseline:
     profile: enterprise
   adoption:
@@ -48,7 +48,7 @@ conservative_enterprise:
   timeframe_months: 36
 moderate_enterprise:
   name: Moderate Enterprise
-  description: 50-person enterprise with balanced adoption approach
+  description: enterprise team (101+ people) with balanced adoption approach
   baseline:
     profile: enterprise
   adoption:
@@ -60,7 +60,7 @@ moderate_enterprise:
   timeframe_months: 36
 aggressive_enterprise:
   name: Aggressive Enterprise
-  description: 50-person enterprise with all-in on AI
+  description: enterprise team (101+ people) with all-in on AI
   baseline:
     profile: enterprise
   adoption:
@@ -72,7 +72,7 @@ aggressive_enterprise:
   timeframe_months: 36
 conservative_scaleup:
   name: Conservative Scaleup
-  description: 25-person scale-up with cautious AI adoption
+  description: scaleup team (20-100 people) with cautious AI adoption
   baseline:
     profile: scale_up
   adoption:
@@ -84,7 +84,7 @@ conservative_scaleup:
   timeframe_months: 24
 moderate_scaleup:
   name: Moderate Scaleup
-  description: 25-person scale-up with balanced adoption approach
+  description: scaleup team (20-100 people) with balanced adoption approach
   baseline:
     profile: scale_up
   adoption:
@@ -96,7 +96,7 @@ moderate_scaleup:
   timeframe_months: 24
 aggressive_scaleup:
   name: Aggressive Scaleup
-  description: 25-person scale-up with all-in on AI
+  description: scaleup team (20-100 people) with all-in on AI
   baseline:
     profile: scale_up
   adoption:

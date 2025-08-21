@@ -1,8 +1,8 @@
 # Startup Company Profile
-# Base metrics for a 10-person startup team
+# Base metrics for startup teams (5-20 people)
 
 name: Startup Profile
-description: Small, agile team with fast iteration but limited resources
+description: Small, agile team (5-20 people) with fast iteration but limited resources
 
 baseline:
   team_size: 10

@@ -13,9 +13,9 @@ scenarios/
 ├── scenarios.yaml              # Legacy deterministic scenarios (backward compatibility)
 ├── scenarios_monte_carlo.yaml  # Legacy Monte Carlo scenarios (backward compatibility)
 ├── profiles/                   # Company profiles (reusable base configurations)
-│   ├── startup.yaml           # 10-person startup configuration
-│   ├── scaleup.yaml          # 25-person scaleup configuration
-│   └── enterprise.yaml       # 50-person enterprise configuration
+│   ├── startup.yaml           # 5-20 person startup configuration
+│   ├── scaleup.yaml          # 20-100 person scaleup configuration
+│   └── enterprise.yaml       # 101+ person enterprise configuration
 ├── strategies/                 # Adoption and impact strategies
 │   ├── conservative.yaml     # Risk-averse approach
 │   ├── moderate.yaml         # Balanced approach
@@ -220,6 +220,7 @@ The baseline section defines the current state of your development organization 
 ```yaml
 baseline:
   team_size: 50                    # Number of developers (integer, > 0)
+                                   # Startup: 5-20, Scaleup: 20-100, Enterprise: 101+
   
   # Team seniority distribution (must sum to 1.0)
   junior_ratio: 0.3                # Percentage of junior developers (0-1)
@@ -496,21 +497,21 @@ costs:
 
 #### Company Size Patterns
 
-**Startups (10 people)**:
+**Startups (5-20 people)**:
 - Lower FLC costs
 - Faster adoption
 - Higher risk tolerance
 - Less infrastructure cost
 - More feature focus
 
-**Scale-ups (25 people)**:
+**Scaleups (20-100 people)**:
 - Moderate costs
 - Balanced adoption
 - Mixed experience levels
 - Growing infrastructure
 - Balance feature/maintenance
 
-**Enterprises (50+ people)**:
+**Enterprises (101+ people)**:
 - Higher FLC costs
 - Slower adoption
 - More process overhead

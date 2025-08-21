@@ -3,11 +3,11 @@
 
 moderate_enterprise_monte_carlo:
   name: Moderate Enterprise with Uncertainty
-  description: 50-person enterprise with probabilistic parameter modeling
+  description: enterprise team (101+ people) with probabilistic parameter modeling
   
   baseline:
     profile: enterprise
-    team_size: 50  # Fixed to match moderate_enterprise
+    team_size: 150  # Fixed to match moderate_enterprise
     
     # Time metrics with triangular distributions
     avg_feature_cycle_days:
@@ -230,7 +230,7 @@ moderate_enterprise_monte_carlo:
 
 moderate_scaleup_monte_carlo:
   name: Moderate Scaleup with Uncertainty
-  description: 25-person scaleup with balanced AI adoption and uncertainty
+  description: scaleup team (20-100 people) with balanced AI adoption and uncertainty
   
   baseline:
     profile: scaleup
@@ -402,7 +402,7 @@ moderate_scaleup_monte_carlo:
 
 aggressive_scaleup_monte_carlo:
   name: Aggressive Scaleup with Uncertainty
-  description: 25-person scaleup with aggressive AI adoption and optimistic projections
+  description: scaleup team (20-100 people) with aggressive AI adoption and optimistic projections
   
   baseline:
     profile: scaleup
@@ -583,7 +583,7 @@ aggressive_scaleup_monte_carlo:
 
 aggressive_enterprise_monte_carlo:
   name: Aggressive Enterprise with Uncertainty
-  description: 50-person enterprise with aggressive AI adoption
+  description: enterprise team (101+ people) with aggressive AI adoption
   
   baseline:
     profile: enterprise
@@ -755,7 +755,7 @@ aggressive_enterprise_monte_carlo:
 
 conservative_startup_monte_carlo:
   name: Conservative Startup with Uncertainty
-  description: 10-person startup with cautious AI adoption and high uncertainty
+  description: startup team (5-20 people) with cautious AI adoption and high uncertainty
   
   baseline:
     profile: startup
