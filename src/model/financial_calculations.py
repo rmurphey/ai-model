@@ -5,6 +5,7 @@ Provides centralized, validated financial calculations for the AI impact model.
 
 from typing import List, Union, Optional, Tuple
 import numpy as np
+import numpy_financial as npf
 from scipy import optimize
 from ..utils.math_helpers import safe_divide
 from ..utils.exceptions import CalculationError
@@ -33,10 +34,10 @@ def calculate_npv(
     cash_flows = np.asarray(cash_flows)
     
     if len(cash_flows) == 0:
-        raise CalculationError("Cash flows array is empty")
+        raise CalculationError("NPV calculation", "Cash flows array is empty")
     
-    if discount_rate < -1:
-        raise CalculationError(f"Discount rate {discount_rate} would cause division by zero")
+    if discount_rate <= -1:
+        raise CalculationError("NPV calculation", f"Discount rate {discount_rate} would cause division by zero")
     
     if periods is None:
         # Assume regular intervals (0, 1, 2, ...)
@@ -46,6 +47,7 @@ def calculate_npv(
         
     if len(periods) != len(cash_flows):
         raise CalculationError(
+            "NPV calculation",
             f"Periods array length ({len(periods)}) must match cash flows length ({len(cash_flows)})"
         )
     
@@ -107,14 +109,17 @@ def calculate_irr(
         return None  # No sign change, IRR undefined
     
     try:
-        # Use numpy's IRR calculation
-        result = np.irr(cash_flows)
+        # Use numpy_financial's IRR calculation
+        result = npf.irr(cash_flows)
         if np.isnan(result):
             # Try scipy optimization as fallback
             def npv_func(rate):
                 return calculate_npv(cash_flows, rate)
             
-            result = optimize.brentq(npv_func, -0.99, 10, maxiter=100)
+            try:
+                result = optimize.brentq(npv_func, -0.99, 10, maxiter=100)
+            except:
+                return None
         
         return float(result) if not np.isnan(result) else None
     except:
@@ -218,7 +223,7 @@ def calculate_profitability_index(
         Profitability Index
     """
     if initial_investment <= 0:
-        raise CalculationError("Initial investment must be positive")
+        raise CalculationError("Profitability Index", "Initial investment must be positive")
     
     pv_future_flows = calculate_npv(future_cash_flows, discount_rate, periods)
     
