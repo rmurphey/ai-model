@@ -281,21 +281,43 @@ class MonteCarloEngine:
         return modified_config
     
     def _check_convergence(self, values: np.ndarray) -> bool:
-        """Check if simulation has converged"""
+        """Check if simulation has converged using proper Monte Carlo standard error"""
         if len(values) < 100:
             return False
         
-        # Check if running mean has stabilized
-        window_size = max(100, len(values) // 10)
-        running_means = np.convolve(values, np.ones(window_size)/window_size, mode='valid')
+        # Method 1: Monte Carlo Standard Error
+        n = len(values)
+        mean = np.mean(values)
+        std = np.std(values, ddof=1)
         
-        if len(running_means) < 2:
-            return False
+        # Monte Carlo standard error: σ/√n
+        mc_std_error = std / np.sqrt(n)
         
-        # Calculate coefficient of variation of running means
-        cv = np.std(running_means) / np.mean(running_means) if np.mean(running_means) != 0 else 0
+        # Check relative error
+        if mean != 0:
+            relative_error = mc_std_error / abs(mean)
+        else:
+            # For zero mean, use absolute error
+            relative_error = mc_std_error
         
-        return cv < self.convergence_threshold
+        # Method 2: Batch Means for additional validation
+        # Split into batches to check variance between batch means
+        batch_size = min(100, n // 10)
+        if batch_size >= 10:  # Need reasonable batch size
+            n_batches = n // batch_size
+            batches = values[:n_batches * batch_size].reshape(n_batches, batch_size)
+            batch_means = np.mean(batches, axis=1)
+            
+            # Check if batch means are stable
+            batch_mean_std = np.std(batch_means, ddof=1)
+            overall_mean = np.mean(batch_means)
+            
+            if overall_mean != 0:
+                batch_relative_error = batch_mean_std / abs(overall_mean)
+                # Use the more conservative estimate
+                relative_error = max(relative_error, batch_relative_error)
+        
+        return relative_error < self.convergence_threshold
     
     def _calculate_statistics(self, values: np.ndarray) -> Dict[str, float]:
         """Calculate comprehensive statistics for a distribution"""

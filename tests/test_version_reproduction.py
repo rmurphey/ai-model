@@ -28,14 +28,14 @@ class TestVersionAwareReproduction(unittest.TestCase):
         self.engine = ReproductionEngine()
         
         # Sample report with version information
-        self.sample_report_v1_0_0 = """# AI Development Impact Analysis Report
+        self.sample_report_v2_0_0 = """# AI Development Impact Analysis Report
 
 **Generated:** 2025-08-20 19:45:50  
 **Analysis Type:** Single Scenario  
 **Scenarios:** test_scenario  
 **Report ID:** `abc123`  
 **Python Version:** 3.13.0  
-**Analysis Tool Version:** v1.0.0
+**Analysis Tool Version:** v2.0.0
 
 ---
 
@@ -72,28 +72,28 @@ final_metrics:
 ```
 
 **Data sources:**
-- Analysis engine: AI Impact Model v1.0.0
+- Analysis engine: AI Impact Model v2.0.0
 """
         
-        self.sample_report_v1_0_1 = self.sample_report_v1_0_0.replace(
-            "v1.0.0", "v1.0.1"
+        self.sample_report_v2_0_1 = self.sample_report_v2_0_0.replace(
+            "v2.0.0", "v2.0.1"
         )
     
     def test_version_extraction(self):
         """Test extraction of version information from reports"""
-        # Test v1.0.0 extraction
-        metadata = self._extract_metadata_from_content(self.sample_report_v1_0_0)
+        # Test v2.0.0 extraction
+        metadata = self._extract_metadata_from_content(self.sample_report_v2_0_0)
         
         self.assertIsNotNone(metadata.model_version)
-        self.assertEqual(metadata.model_version, ModelVersion(1, 0, 0))
-        self.assertEqual(metadata.tool_version, "1.0.0")
+        self.assertEqual(metadata.model_version, ModelVersion(2, 0, 0))
+        self.assertEqual(metadata.tool_version, "2.0.0")
         
-        # Test v1.0.1 extraction
-        metadata = self._extract_metadata_from_content(self.sample_report_v1_0_1)
+        # Test v2.0.1 extraction
+        metadata = self._extract_metadata_from_content(self.sample_report_v2_0_1)
         
         self.assertIsNotNone(metadata.model_version)
-        self.assertEqual(metadata.model_version, ModelVersion(1, 0, 1))
-        self.assertEqual(metadata.tool_version, "1.0.1")
+        self.assertEqual(metadata.model_version, ModelVersion(2, 0, 1))
+        self.assertEqual(metadata.tool_version, "2.0.1")
     
     def test_version_extraction_fallback(self):
         """Test version extraction fallback to engine version"""
@@ -103,11 +103,11 @@ final_metrics:
 **Scenarios:** test
 
 **Data sources:**
-- Analysis engine: AI Impact Model v1.0.0
+- Analysis engine: AI Impact Model v2.0.0
 """
         
         model_version, tool_version = self.extractor._extract_version_info(report_content)
-        self.assertEqual(model_version, ModelVersion(1, 0, 0))
+        self.assertEqual(model_version, ModelVersion(2, 0, 0))
         self.assertIsNone(tool_version)
     
     def test_version_extraction_invalid(self):
@@ -137,7 +137,7 @@ final_metrics:
     
     @patch('src.reproducibility.reproduction_engine.AIImpactModel')
     def test_reproduction_with_version_adaptation(self, mock_model_class):
-        """Test reproduction with version adaptation"""
+        """Test reproduction with same version (v2.0.0)"""
         # Mock the model
         mock_model = MagicMock()
         mock_model_class.return_value = mock_model
@@ -154,7 +154,7 @@ final_metrics:
         
         # Create temporary report file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
-            f.write(self.sample_report_v1_0_0)
+            f.write(self.sample_report_v2_0_0)
             temp_path = f.name
         
         try:
@@ -165,7 +165,7 @@ final_metrics:
             self.assertIsNotNone(result.version_compatibility)
             self.assertEqual(
                 result.reproduction_metadata.model_version, 
-                ModelVersion(1, 0, 0)
+                ModelVersion(2, 0, 0)
             )
             
         finally:
@@ -174,11 +174,11 @@ final_metrics:
     @patch('src.config.version.get_current_version')
     def test_tolerance_adjustment_for_versions(self, mock_current_version):
         """Test tolerance adjustment based on version differences"""
-        # Mock current version as v1.0.1
-        mock_current_version.return_value = ModelVersion(1, 0, 1)
+        # Mock current version as v2.0.1
+        mock_current_version.return_value = ModelVersion(2, 0, 1)
         
-        # Create metadata with v1.0.0
-        metadata = self._create_test_metadata(ModelVersion(1, 0, 0))
+        # Create metadata with v2.0.0
+        metadata = self._create_test_metadata(ModelVersion(2, 0, 0))
         
         # Test that tolerance should be adjusted for version differences
         # This is tested indirectly through the reproduction process
@@ -187,7 +187,7 @@ final_metrics:
         # The engine should adjust tolerance internally
         # We can verify this by checking the version compatibility info
         from src.config.version import get_compatibility_info
-        info = get_compatibility_info(ModelVersion(1, 0, 0), ModelVersion(1, 0, 1))
+        info = get_compatibility_info(ModelVersion(2, 0, 0), ModelVersion(2, 0, 1))
         
         self.assertEqual(info['compatibility_level'], 'major')
         self.assertTrue(info['can_reproduce'])
@@ -196,14 +196,14 @@ final_metrics:
     def test_version_compatibility_reporting(self):
         """Test version compatibility information in results"""
         with patch('src.config.version.get_current_version') as mock_current:
-            mock_current.return_value = ModelVersion(1, 0, 1)
+            mock_current.return_value = ModelVersion(2, 0, 1)
             
             # Create metadata with different version
-            metadata = self._create_test_metadata(ModelVersion(1, 0, 0))
+            metadata = self._create_test_metadata(ModelVersion(2, 0, 0))
             
             # Test compatibility info generation
             from src.config.version import get_compatibility_info
-            info = get_compatibility_info(metadata.model_version, ModelVersion(1, 0, 1))
+            info = get_compatibility_info(metadata.model_version, ModelVersion(2, 0, 1))
             
             self.assertIn('compatibility_level', info)
             self.assertIn('can_reproduce', info)
@@ -213,10 +213,10 @@ final_metrics:
     def test_unsupported_version_handling(self):
         """Test handling of unsupported version transitions"""
         # Test major version difference
-        metadata = self._create_test_metadata(ModelVersion(2, 0, 0))
+        metadata = self._create_test_metadata(ModelVersion(3, 0, 0))
         
         from src.config.version import get_compatibility_info, get_current_version
-        current = get_current_version()  # Should be v1.0.0
+        current = get_current_version()  # Now v2.0.0
         info = get_compatibility_info(metadata.model_version, current)
         
         # Major version difference should have limited compatibility
@@ -259,10 +259,10 @@ class TestVersionValidationTolerance(unittest.TestCase):
         
         # Test different version scenarios
         test_cases = [
-            (ModelVersion(1, 0, 0), ModelVersion(1, 0, 0), 0.01),  # Same version
-            (ModelVersion(1, 0, 0), ModelVersion(1, 0, 1), 0.02),  # Patch difference
-            (ModelVersion(1, 0, 0), ModelVersion(1, 1, 0), 0.02),  # Minor difference
-            (ModelVersion(1, 0, 0), ModelVersion(2, 0, 0), 0.05),  # Major difference
+            (ModelVersion(2, 0, 0), ModelVersion(2, 0, 0), 0.01),  # Same version
+            (ModelVersion(2, 0, 0), ModelVersion(2, 0, 1), 0.02),  # Patch difference
+            (ModelVersion(2, 0, 0), ModelVersion(2, 1, 0), 0.02),  # Minor difference
+            (ModelVersion(2, 0, 0), ModelVersion(3, 0, 0), 0.05),  # Major difference
         ]
         
         for from_version, to_version, expected_min_tolerance in test_cases:
@@ -285,22 +285,22 @@ class TestVersionCompatibilityWorkflow(unittest.TestCase):
     def test_complete_workflow(self):
         """Test complete version-aware reproduction workflow"""
         # 1. Version detection
-        v1_0_0 = ModelVersion(1, 0, 0)
-        v1_0_1 = ModelVersion(1, 0, 1)
+        v2_0_0 = ModelVersion(2, 0, 0)
+        v2_0_1 = ModelVersion(2, 0, 1)
         
         # 2. Compatibility checking
         from src.config.version import get_compatibility_info
-        info = get_compatibility_info(v1_0_0, v1_0_1)
+        info = get_compatibility_info(v2_0_0, v2_0_1)
         self.assertTrue(info['can_reproduce'])
         
         # 3. Adapter selection
         from src.versioning.version_adapter import get_version_adapter
-        adapter = get_version_adapter(v1_0_0, v1_0_1)
-        self.assertTrue(adapter.can_adapt(v1_0_0, v1_0_1))
+        adapter = get_version_adapter(v2_0_0, v2_0_1)
+        self.assertTrue(adapter.can_adapt(v2_0_0, v2_0_1))
         
         # 4. Configuration adaptation
         config = {"test": "config"}
-        result = adapter.adapt_scenario_config(config, v1_0_0, v1_0_1)
+        result = adapter.adapt_scenario_config(config, v2_0_0, v2_0_1)
         self.assertTrue(result.success)
         
         # 5. Tolerance adjustment

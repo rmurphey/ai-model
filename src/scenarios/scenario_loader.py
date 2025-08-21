@@ -62,25 +62,55 @@ class ScenarioLoader:
         profiles_dir = self.scenarios_path / "profiles"
         if profiles_dir.exists():
             for file in profiles_dir.glob("*.yaml"):
-                with open(file, 'r') as f:
-                    profile = yaml.safe_load(f)
-                    self._profiles[file.stem] = profile
+                try:
+                    with open(file, 'r') as f:
+                        profile = yaml.safe_load(f)
+                        self._profiles[file.stem] = profile
+                except yaml.YAMLError as e:
+                    raise ConfigurationError(
+                        f"Invalid YAML format in profile {file}",
+                        config_file=str(file),
+                        resolution_steps=[
+                            "Check YAML syntax in the profile file",
+                            f"Error: {str(e)}"
+                        ]
+                    )
         
         # Load strategies
         strategies_dir = self.scenarios_path / "strategies"
         if strategies_dir.exists():
             for file in strategies_dir.glob("*.yaml"):
-                with open(file, 'r') as f:
-                    strategy = yaml.safe_load(f)
-                    self._strategies[file.stem] = strategy
+                try:
+                    with open(file, 'r') as f:
+                        strategy = yaml.safe_load(f)
+                        self._strategies[file.stem] = strategy
+                except yaml.YAMLError as e:
+                    raise ConfigurationError(
+                        f"Invalid YAML format in strategy {file}",
+                        config_file=str(file),
+                        resolution_steps=[
+                            "Check YAML syntax in the strategy file",
+                            f"Error: {str(e)}"
+                        ]
+                    )
         
         # Load distributions
         distributions_dir = self.scenarios_path / "distributions"
         if distributions_dir.exists():
             for file in distributions_dir.glob("*.yaml"):
-                with open(file, 'r') as f:
-                    dist = yaml.safe_load(f)
-                    self._distributions[file.stem] = dist
+                try:
+                    with open(file, 'r') as f:
+                        dist = yaml.safe_load(f)
+                        self._distributions[file.stem] = dist
+                except yaml.YAMLError as e:
+                    raise ConfigurationError(
+                        f"Invalid YAML format in distribution {file}",
+                        config_file=str(file),
+                        resolution_steps=[
+                            "Check YAML syntax in the distribution file",
+                            f"Error: {str(e)}"
+                        ]
+                    )
     
     def _load_modular_scenarios(self) -> Dict[str, Any]:
         """Load all scenarios from modular directory structure."""
@@ -127,8 +157,20 @@ class ScenarioLoader:
     
     def _load_scenario_file(self, file_path: Path) -> Dict[str, Any]:
         """Load and compose a scenario from a file."""
-        with open(file_path, 'r') as f:
-            scenario = yaml.safe_load(f)
+        try:
+            with open(file_path, 'r') as f:
+                scenario = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            raise ConfigurationError(
+                f"Invalid YAML format in {file_path}",
+                config_file=str(file_path),
+                resolution_steps=[
+                    "Check YAML syntax using a validator",
+                    "Ensure proper indentation (use spaces, not tabs)",
+                    "Check for missing colons or dashes",
+                    f"Error details: {str(e)}"
+                ]
+            )
         
         # Handle composition if 'extends' is specified
         if 'extends' in scenario:

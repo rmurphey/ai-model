@@ -312,9 +312,10 @@ class ReproductionEngine:
                         adaptation_warnings.extend(adaptation_result.warnings)
                     else:
                         raise ValidationError(
-                            f"Cannot adapt scenario '{scenario_name}' from {metadata.model_version} to {current_version}",
-                            "version_adaptation",
-                            context=f"Errors: {adaptation_result.errors}"
+                            "scenario_adaptation",
+                            f"'{scenario_name}' from {metadata.model_version} to {current_version}",
+                            "Compatible version transition",
+                            suggestion=f"Check version adapter compatibility. Errors: {', '.join(adaptation_result.errors)}"
                         )
             
             # Create temporary scenario file with adapted configs

@@ -58,13 +58,20 @@ class Normal(Distribution):
         if random_state is None:
             random_state = np.random.RandomState()
         
-        samples = random_state.normal(self.mean_val, self.std_val, size)
-        
-        # Apply bounds if specified
-        if self.min_val is not None:
-            samples = np.maximum(samples, self.min_val)
-        if self.max_val is not None:
-            samples = np.minimum(samples, self.max_val)
+        # Use truncated normal if bounds are specified
+        if self.min_val is not None or self.max_val is not None:
+            from scipy.stats import truncnorm
+            
+            # Calculate standardized bounds
+            a = -np.inf if self.min_val is None else (self.min_val - self.mean_val) / self.std_val
+            b = np.inf if self.max_val is None else (self.max_val - self.mean_val) / self.std_val
+            
+            # Generate samples from truncated normal
+            samples = truncnorm.rvs(a, b, loc=self.mean_val, scale=self.std_val, 
+                                   size=size, random_state=random_state)
+        else:
+            # No bounds, use regular normal distribution
+            samples = random_state.normal(self.mean_val, self.std_val, size)
         
         return samples
     
@@ -207,13 +214,42 @@ class LogNormal(Distribution):
         if random_state is None:
             random_state = np.random.RandomState()
         
-        samples = random_state.lognormal(self.mean_log, self.std_log, size)
-        
-        # Apply bounds if specified
-        if self.min_val is not None:
-            samples = np.maximum(samples, self.min_val)
-        if self.max_val is not None:
-            samples = np.minimum(samples, self.max_val)
+        # Use rejection sampling for bounded log-normal
+        if self.min_val is not None or self.max_val is not None:
+            samples = []
+            max_attempts = size * 100  # Prevent infinite loop
+            attempts = 0
+            
+            while len(samples) < size and attempts < max_attempts:
+                # Generate batch of samples
+                batch_size = min(size - len(samples) + 10, 1000)
+                batch = random_state.lognormal(self.mean_log, self.std_log, batch_size)
+                
+                # Apply bounds
+                if self.min_val is not None:
+                    batch = batch[batch >= self.min_val]
+                if self.max_val is not None:
+                    batch = batch[batch <= self.max_val]
+                
+                samples.extend(batch[:size - len(samples)])
+                attempts += batch_size
+            
+            if len(samples) < size:
+                # If rejection sampling fails, fall back to clipping with warning
+                warnings.warn(f"Rejection sampling failed for bounded log-normal. "
+                            f"Falling back to clipping, which may distort the distribution.")
+                remaining = size - len(samples)
+                batch = random_state.lognormal(self.mean_log, self.std_log, remaining)
+                if self.min_val is not None:
+                    batch = np.maximum(batch, self.min_val)
+                if self.max_val is not None:
+                    batch = np.minimum(batch, self.max_val)
+                samples.extend(batch)
+            
+            samples = np.array(samples[:size])
+        else:
+            # No bounds, use regular log-normal distribution
+            samples = random_state.lognormal(self.mean_log, self.std_log, size)
         
         return samples
     
@@ -291,8 +327,7 @@ class ParameterDistributions:
         for param in uncorrelated:
             samples[param] = self.distributions[param].sample(size, random_state)
         
-        # Handle correlated parameters using copulas (simplified approach)
-        # For now, we'll use a simple approach with normal copulas
+        # Handle correlated parameters using proper multivariate approach
         correlated_groups = self._find_correlation_groups()
         
         for group in correlated_groups:
@@ -317,11 +352,48 @@ class ParameterDistributions:
                     self.distributions[p2].percentile(u) for u in uniform_samples[:, 1]
                 ])
             else:
-                # Complex case: multiple correlated parameters
-                # For simplicity, sample independently (correlation handling could be enhanced)
-                for param in group:
-                    if param not in samples:
-                        samples[param] = self.distributions[param].sample(size, random_state)
+                # Complex case: multiple correlated parameters using Cholesky decomposition
+                n_params = len(group)
+                
+                # Build correlation matrix for this group
+                corr_matrix = np.eye(n_params)
+                for i, p1 in enumerate(group):
+                    for j, p2 in enumerate(group):
+                        if i < j:
+                            corr_value = self.correlations.get((p1, p2), 
+                                                              self.correlations.get((p2, p1), 0))
+                            corr_matrix[i, j] = corr_value
+                            corr_matrix[j, i] = corr_value
+                
+                # Ensure correlation matrix is positive definite
+                # Add small value to diagonal if needed
+                min_eigenval = np.min(np.linalg.eigvalsh(corr_matrix))
+                if min_eigenval < 1e-10:
+                    corr_matrix += (1e-10 - min_eigenval) * np.eye(n_params)
+                
+                # Generate correlated normal samples using Cholesky decomposition
+                try:
+                    L = np.linalg.cholesky(corr_matrix)
+                    # Generate independent standard normal samples
+                    z = random_state.standard_normal((size, n_params))
+                    # Transform to correlated samples
+                    correlated_normal = z @ L.T
+                    
+                    # Transform to uniform [0,1] using normal CDF
+                    uniform_samples = stats.norm.cdf(correlated_normal)
+                    
+                    # Transform to target distributions using inverse CDF
+                    for idx, param in enumerate(group):
+                        samples[param] = np.array([
+                            self.distributions[param].percentile(u) for u in uniform_samples[:, idx]
+                        ])
+                except np.linalg.LinAlgError:
+                    # If Cholesky fails, fall back to independent sampling
+                    warnings.warn(f"Correlation matrix not positive definite for group {group}. "
+                                f"Sampling independently.")
+                    for param in group:
+                        if param not in samples:
+                            samples[param] = self.distributions[param].sample(size, random_state)
         
         return samples
     

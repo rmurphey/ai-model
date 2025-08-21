@@ -100,7 +100,8 @@ CURRENT_VERSION = ModelVersion(2, 0, 0)
 # List of supported versions for reproduction
 SUPPORTED_VERSIONS = [
     ModelVersion(1, 0, 0),
-    ModelVersion(1, 1, 0)
+    ModelVersion(1, 1, 0),
+    ModelVersion(2, 0, 0)
 ]
 
 # Version history and breaking changes

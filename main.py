@@ -18,6 +18,7 @@ from src.utils.exceptions import ConfigurationError, ScenarioError, CalculationE
 from src.utils.math_helpers import safe_divide
 from src.utils.cache import cached_result, get_cache_statistics, cache_key_from_dict
 from src.config.constants import DEFAULT_DISCOUNT_RATE_ANNUAL, MONTHS_PER_YEAR
+from src.model.financial_calculations import calculate_npv_monthly, calculate_roi
 
 from src.model.baseline import BaselineMetrics, create_industry_baseline, calculate_opportunity_cost
 from src.model.impact_model import ImpactFactors, BusinessImpact, create_impact_scenario
@@ -32,6 +33,21 @@ class AIImpactModel:
     
     def __init__(self, scenario_file: str = "src/scenarios"):
         """Initialize with scenario configurations"""
+        # Check if the specified path exists
+        if scenario_file != "src/scenarios":  # Only check non-default paths
+            if scenario_file.endswith('.yaml'):
+                # Check if the YAML file exists
+                if not os.path.exists(scenario_file):
+                    raise ConfigurationError(
+                        f"Scenario file not found: {scenario_file}",
+                        config_file=scenario_file,
+                        resolution_steps=[
+                            f"Check if the file exists: ls {scenario_file}",
+                            "Provide a valid scenario file path",
+                            "Use default scenarios directory: src/scenarios"
+                        ]
+                    )
+        
         # Use modular loader
         try:
             from src.scenarios.scenario_loader import ScenarioLoader
@@ -196,10 +212,9 @@ class AIImpactModel:
         
         breakeven = calculate_breakeven(costs, {'total': monthly_value})
         
-        # Calculate NPV using default discount rate
-        discount_rate = DEFAULT_DISCOUNT_RATE_ANNUAL / MONTHS_PER_YEAR  # Monthly discount rate
-        discount_factors = [(1 + discount_rate) ** -i for i in range(months)]
-        npv = sum((monthly_value[i] - costs['total'][i]) * discount_factors[i] for i in range(months))
+        # Calculate NPV using centralized financial calculation
+        monthly_net_cash_flows = [monthly_value[i] - costs['total'][i] for i in range(months)]
+        npv = calculate_npv_monthly(monthly_net_cash_flows, DEFAULT_DISCOUNT_RATE_ANNUAL)
         
         # Calculate final impact at full adoption
         final_impact = BusinessImpact(baseline, impact_factors, effective_adoption[-1])
@@ -411,10 +426,10 @@ class AIImpactModel:
         
         breakeven = calculate_breakeven(costs, {'total': monthly_value})
         
-        # Calculate NPV
-        discount_rate = config.get('economic', {}).get('discount_rate_annual', DEFAULT_DISCOUNT_RATE_ANNUAL) / MONTHS_PER_YEAR
-        discount_factors = [(1 + discount_rate) ** -i for i in range(months)]
-        npv = sum((monthly_value[i] - costs['total'][i]) * discount_factors[i] for i in range(months))
+        # Calculate NPV using centralized financial calculation
+        annual_discount_rate = config.get('economic', {}).get('discount_rate_annual', DEFAULT_DISCOUNT_RATE_ANNUAL)
+        monthly_net_cash_flows = [monthly_value[i] - costs['total'][i] for i in range(months)]
+        npv = calculate_npv_monthly(monthly_net_cash_flows, annual_discount_rate)
         
         # Calculate final impact
         final_impact = BusinessImpact(baseline, impact_factors, effective_adoption[-1])
