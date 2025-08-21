@@ -160,8 +160,18 @@ class BaselineMetrics:
         }
 
 
-def create_industry_baseline(industry: str = "enterprise") -> BaselineMetrics:
-    """Create baseline metrics based on industry benchmarks"""
+def create_industry_baseline(industry_or_params = "enterprise") -> BaselineMetrics:
+    """Create baseline metrics based on industry benchmarks or custom parameters"""
+    
+    # If a dict is passed, check for 'profile' key or use dict directly
+    if isinstance(industry_or_params, dict):
+        if 'profile' in industry_or_params:
+            industry = industry_or_params['profile']
+        else:
+            # Custom parameters provided - create directly
+            return BaselineMetrics(**industry_or_params)
+    else:
+        industry = industry_or_params
     
     profiles = {
         "startup": BaselineMetrics(

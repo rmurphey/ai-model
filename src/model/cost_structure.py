@@ -293,8 +293,18 @@ class CostModel:
         return yearly_costs
 
 
-def create_cost_scenario(scenario: str = "standard") -> AIToolCosts:
-    """Create cost structure for different scenarios"""
+def create_cost_scenario(scenario_or_params = "standard") -> AIToolCosts:
+    """Create cost structure for different scenarios or custom parameters"""
+    
+    # If a dict is passed, check for 'scenario' key or use dict directly
+    if isinstance(scenario_or_params, dict):
+        if 'scenario' in scenario_or_params:
+            scenario = scenario_or_params['scenario']
+        else:
+            # Custom parameters provided - create directly
+            return AIToolCosts(**scenario_or_params)
+    else:
+        scenario = scenario_or_params
     
     scenarios = {
         "startup": AIToolCosts(

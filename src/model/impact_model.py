@@ -264,8 +264,18 @@ class BusinessImpact:
         }
 
 
-def create_impact_scenario(scenario: str = "moderate") -> ImpactFactors:
-    """Create impact factors for different scenarios"""
+def create_impact_scenario(scenario_or_params = "moderate") -> ImpactFactors:
+    """Create impact factors for different scenarios or custom parameters"""
+    
+    # If a dict is passed, check for 'scenario' key or use dict directly
+    if isinstance(scenario_or_params, dict):
+        if 'scenario' in scenario_or_params:
+            scenario = scenario_or_params['scenario']
+        else:
+            # Custom parameters provided - create directly
+            return ImpactFactors(**scenario_or_params)
+    else:
+        scenario = scenario_or_params
     
     scenarios = {
         "conservative": ImpactFactors(

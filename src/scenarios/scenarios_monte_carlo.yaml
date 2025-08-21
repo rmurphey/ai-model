@@ -1,0 +1,374 @@
+# Monte Carlo scenario definitions with probability distributions
+# This file demonstrates how to define uncertainty in model parameters
+
+moderate_enterprise_monte_carlo:
+  name: Moderate Enterprise with Uncertainty
+  description: 100-person enterprise with probabilistic parameter modeling
+  
+  baseline:
+    profile: enterprise
+    
+    # Example of adding uncertainty to baseline metrics
+    team_size: 100
+    
+    # Time metrics with triangular distributions
+    avg_feature_cycle_days:
+      value: 30
+      distribution:
+        type: triangular
+        min: 25
+        mode: 30
+        max: 40
+    
+    avg_bug_fix_hours:
+      value: 8
+      distribution:
+        type: triangular
+        min: 4
+        mode: 8
+        max: 16
+    
+    # Quality metrics with normal distributions
+    defect_escape_rate:
+      value: 5.0
+      distribution:
+        type: normal
+        mean: 5.0
+        std: 1.0
+        min: 2.0
+        max: 10.0
+    
+    production_incidents_per_month:
+      value: 12
+      distribution:
+        type: triangular
+        min: 8
+        mode: 12
+        max: 20
+  
+  adoption:
+    scenario: mandated
+    
+    # Adoption parameters with uncertainty
+    initial_adopters:
+      value: 0.15
+      distribution:
+        type: beta
+        alpha: 3
+        beta: 17
+        min: 0.05
+        max: 0.25
+    
+    early_adopters:
+      value: 0.25
+      distribution:
+        type: beta
+        alpha: 5
+        beta: 15
+        min: 0.15
+        max: 0.35
+    
+    dropout_rate_month:
+      value: 0.03
+      distribution:
+        type: triangular
+        min: 0.01
+        mode: 0.03
+        max: 0.06
+    
+    learning_rate:
+      value: 0.2
+      distribution:
+        type: uniform
+        min: 0.15
+        max: 0.25
+    
+    plateau_efficiency:
+      value: 0.85
+      distribution:
+        type: triangular
+        min: 0.75
+        mode: 0.85
+        max: 0.95
+  
+  impact:
+    scenario: moderate
+    
+    # Impact factors with realistic uncertainty ranges
+    feature_cycle_reduction:
+      value: 0.3
+      distribution:
+        type: triangular
+        min: 0.2
+        mode: 0.3
+        max: 0.4
+    
+    bug_fix_reduction:
+      value: 0.4
+      distribution:
+        type: triangular
+        min: 0.25
+        mode: 0.4
+        max: 0.5
+    
+    defect_reduction:
+      value: 0.4
+      distribution:
+        type: beta
+        alpha: 4
+        beta: 6
+        min: 0.25
+        max: 0.55
+    
+    incident_reduction:
+      value: 0.3
+      distribution:
+        type: triangular
+        min: 0.2
+        mode: 0.3
+        max: 0.45
+    
+    # Developer effectiveness multipliers
+    junior_multiplier:
+      value: 1.5
+      distribution:
+        type: normal
+        mean: 1.5
+        std: 0.2
+        min: 1.0
+        max: 2.0
+    
+    mid_multiplier:
+      value: 1.2
+      distribution:
+        type: normal
+        mean: 1.2
+        std: 0.15
+        min: 0.9
+        max: 1.5
+    
+    senior_multiplier:
+      value: 1.1
+      distribution:
+        type: normal
+        mean: 1.1
+        std: 0.1
+        min: 0.9
+        max: 1.3
+  
+  costs:
+    scenario: enterprise
+    
+    # Cost parameters with uncertainty
+    cost_per_seat_month:
+      value: 45
+      distribution:
+        type: triangular
+        min: 40
+        mode: 45
+        max: 55
+    
+    token_cost_per_million:
+      value: 5.0
+      distribution:
+        type: lognormal
+        mean_log: 1.5  # ln(5.0) ≈ 1.6
+        std_log: 0.2
+        min: 2.0
+        max: 15.0
+    
+    tokens_per_user_month_initial:
+      value: 2.0
+      distribution:
+        type: triangular
+        min: 1.0
+        mode: 2.0
+        max: 4.0
+    
+    training_cost_per_user:
+      value: 500
+      distribution:
+        type: uniform
+        min: 400
+        max: 600
+    
+    admin_overhead_ratio:
+      value: 0.2
+      distribution:
+        type: beta
+        alpha: 2
+        beta: 8
+        min: 0.1
+        max: 0.3
+  
+  # Economic parameters
+  economic:
+    discount_rate_annual:
+      value: 0.10
+      distribution:
+        type: triangular
+        min: 0.08
+        mode: 0.10
+        max: 0.12
+  
+  # Parameter correlations
+  correlations:
+    - param1: adoption.initial_adopters
+      param2: adoption.early_adopters
+      correlation: 0.6
+    
+    - param1: adoption.plateau_efficiency
+      param2: adoption.learning_rate
+      correlation: 0.4
+    
+    - param1: impact.feature_cycle_reduction
+      param2: impact.bug_fix_reduction
+      correlation: 0.7
+    
+    - param1: impact.defect_reduction
+      param2: impact.incident_reduction
+      correlation: 0.8
+    
+    - param1: costs.cost_per_seat_month
+      param2: costs.training_cost_per_user
+      correlation: 0.3
+  
+  timeframe_months: 36
+
+
+conservative_startup_monte_carlo:
+  name: Conservative Startup with Uncertainty
+  description: 10-person startup with cautious AI adoption and high uncertainty
+  
+  baseline:
+    profile: startup
+    
+    # Startup metrics with higher uncertainty
+    avg_feature_cycle_days:
+      value: 14
+      distribution:
+        type: triangular
+        min: 7
+        mode: 14
+        max: 30
+    
+    defect_escape_rate:
+      value: 8.0
+      distribution:
+        type: normal
+        mean: 8.0
+        std: 2.0
+        min: 3.0
+        max: 15.0
+  
+  adoption:
+    scenario: organic
+    
+    # Conservative adoption with high uncertainty
+    initial_adopters:
+      value: 0.05
+      distribution:
+        type: beta
+        alpha: 1
+        beta: 19
+        min: 0.01
+        max: 0.15
+    
+    dropout_rate_month:
+      value: 0.05
+      distribution:
+        type: triangular
+        min: 0.02
+        mode: 0.05
+        max: 0.10
+  
+  impact:
+    scenario: conservative
+    
+    # Conservative impact estimates with wide ranges
+    feature_cycle_reduction:
+      value: 0.2
+      distribution:
+        type: triangular
+        min: 0.1
+        mode: 0.2
+        max: 0.35
+    
+    defect_reduction:
+      value: 0.25
+      distribution:
+        type: beta
+        alpha: 2.5
+        beta: 7.5
+        min: 0.1
+        max: 0.4
+  
+  costs:
+    scenario: startup
+    
+    cost_per_seat_month:
+      value: 30
+      distribution:
+        type: uniform
+        min: 25
+        max: 40
+  
+  timeframe_months: 24
+
+
+# Template for creating Monte Carlo scenarios
+monte_carlo_template:
+  name: Template for Monte Carlo Scenarios
+  description: Example showing all distribution types
+  
+  example_distributions:
+    
+    # Deterministic (no uncertainty)
+    fixed_value: 100
+    
+    # Normal distribution
+    normal_param:
+      value: 50  # Used for deterministic mode
+      distribution:
+        type: normal
+        mean: 50
+        std: 10
+        min: 20  # Optional truncation
+        max: 80  # Optional truncation
+    
+    # Triangular distribution (min, mode, max)
+    triangular_param:
+      value: 0.3
+      distribution:
+        type: triangular
+        min: 0.2
+        mode: 0.3
+        max: 0.5
+    
+    # Beta distribution (for rates/percentages)
+    rate_param:
+      value: 0.7
+      distribution:
+        type: beta
+        alpha: 7
+        beta: 3
+        min: 0.0  # Default for beta
+        max: 1.0  # Default for beta
+    
+    # Uniform distribution
+    uniform_param:
+      value: 100
+      distribution:
+        type: uniform
+        min: 80
+        max: 120
+    
+    # Log-normal distribution (for costs, durations)
+    cost_param:
+      value: 1000
+      distribution:
+        type: lognormal
+        mean_log: 6.9  # ln(1000)
+        std_log: 0.3
+        min: 500  # Optional
+        max: 5000  # Optional

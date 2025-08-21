@@ -1,0 +1,393 @@
+"""
+Monte Carlo simulation engine for probabilistic business impact analysis.
+Runs multiple iterations with sampled parameters to generate confidence intervals.
+"""
+
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple, Any, Callable
+import numpy as np
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import multiprocessing as mp
+
+from .distributions import ParameterDistributions, Distribution, Deterministic, create_distribution_from_config
+from .baseline import BaselineMetrics
+from .impact_model import ImpactFactors
+from .adoption_dynamics import AdoptionParameters
+from .cost_structure import AIToolCosts
+from ..utils.exceptions import CalculationError, ValidationError
+from ..config.constants import DEFAULT_DISCOUNT_RATE_ANNUAL
+
+
+@dataclass
+class MonteCarloResults:
+    """Container for Monte Carlo simulation results"""
+    
+    # Core metrics distributions
+    npv_distribution: np.ndarray
+    roi_distribution: np.ndarray
+    breakeven_distribution: np.ndarray
+    total_value_distribution: np.ndarray
+    total_cost_distribution: np.ndarray
+    
+    # Statistical summaries
+    npv_stats: Dict[str, float]  # mean, std, p10, p50, p90, etc.
+    roi_stats: Dict[str, float]
+    breakeven_stats: Dict[str, float]
+    value_stats: Dict[str, float]
+    cost_stats: Dict[str, float]
+    
+    # Risk metrics
+    probability_positive_npv: float
+    probability_breakeven_within_24_months: float
+    probability_roi_above_target: float
+    
+    # Sensitivity analysis
+    parameter_correlations: Dict[str, float]  # Correlation with NPV
+    parameter_importance: List[Tuple[str, float]]  # Ranked by impact
+    
+    # Metadata
+    iterations: int
+    convergence_achieved: bool
+    runtime_seconds: float
+    random_seed: Optional[int]
+    
+    def get_confidence_interval(self, metric: str, confidence: float = 0.95) -> Tuple[float, float]:
+        """Get confidence interval for a specific metric"""
+        alpha = (1 - confidence) / 2
+        
+        if metric == 'npv':
+            dist = self.npv_distribution
+        elif metric == 'roi':
+            dist = self.roi_distribution
+        elif metric == 'breakeven':
+            dist = self.breakeven_distribution
+        elif metric == 'value':
+            dist = self.total_value_distribution
+        elif metric == 'cost':
+            dist = self.total_cost_distribution
+        else:
+            raise ValueError(f"Unknown metric: {metric}")
+        
+        lower = np.percentile(dist, alpha * 100)
+        upper = np.percentile(dist, (1 - alpha) * 100)
+        
+        return (lower, upper)
+
+
+class MonteCarloEngine:
+    """Engine for running Monte Carlo simulations on the AI impact model"""
+    
+    def __init__(self, 
+                 model_runner: Callable,
+                 parameter_distributions: ParameterDistributions,
+                 iterations: int = 1000,
+                 confidence_level: float = 0.95,
+                 target_roi: float = 100.0,
+                 convergence_threshold: float = 0.01,
+                 random_seed: Optional[int] = None,
+                 n_jobs: int = 1):
+        """
+        Initialize Monte Carlo engine.
+        
+        Args:
+            model_runner: Function that takes parameters and returns results dict
+            parameter_distributions: Distribution definitions for all parameters
+            iterations: Number of simulation iterations
+            confidence_level: Confidence level for intervals (e.g., 0.95 for 95%)
+            target_roi: Target ROI for probability calculations
+            convergence_threshold: Threshold for convergence checking
+            random_seed: Random seed for reproducibility
+            n_jobs: Number of parallel processes (-1 for all CPUs)
+        """
+        self.model_runner = model_runner
+        self.parameter_distributions = parameter_distributions
+        self.iterations = iterations
+        self.confidence_level = confidence_level
+        self.target_roi = target_roi
+        self.convergence_threshold = convergence_threshold
+        self.random_seed = random_seed
+        self.n_jobs = n_jobs if n_jobs > 0 else mp.cpu_count()
+        
+        # Initialize random state
+        self.random_state = np.random.RandomState(random_seed)
+    
+    def run(self, base_scenario_config: Dict[str, Any]) -> MonteCarloResults:
+        """
+        Run Monte Carlo simulation.
+        
+        Args:
+            base_scenario_config: Base configuration to modify with sampled parameters
+            
+        Returns:
+            MonteCarloResults with distributions and statistics
+        """
+        start_time = time.time()
+        
+        # Generate parameter samples for all iterations
+        parameter_samples = self.parameter_distributions.sample_all(
+            size=self.iterations, 
+            random_state=self.random_state
+        )
+        
+        # Storage for results
+        npv_values = np.zeros(self.iterations)
+        roi_values = np.zeros(self.iterations)
+        breakeven_values = np.zeros(self.iterations)
+        value_values = np.zeros(self.iterations)
+        cost_values = np.zeros(self.iterations)
+        
+        # Track parameters for sensitivity analysis
+        parameter_values = {param: samples for param, samples in parameter_samples.items()}
+        
+        # Run simulations
+        if self.n_jobs == 1:
+            # Sequential execution
+            for i in range(self.iterations):
+                params = {k: v[i] for k, v in parameter_samples.items()}
+                results = self._run_single_iteration(base_scenario_config, params, i)
+                
+                npv_values[i] = results['npv']
+                roi_values[i] = results['roi_percent']
+                breakeven_values[i] = results['breakeven_month']
+                value_values[i] = results['total_value_3y']
+                cost_values[i] = results['total_cost_3y']
+        else:
+            # Parallel execution
+            npv_values, roi_values, breakeven_values, value_values, cost_values = \
+                self._run_parallel_simulations(base_scenario_config, parameter_samples)
+        
+        # Check convergence
+        convergence_achieved = self._check_convergence(npv_values)
+        
+        # Calculate statistics
+        npv_stats = self._calculate_statistics(npv_values)
+        roi_stats = self._calculate_statistics(roi_values)
+        breakeven_stats = self._calculate_statistics(breakeven_values)
+        value_stats = self._calculate_statistics(value_values)
+        cost_stats = self._calculate_statistics(cost_values)
+        
+        # Calculate risk metrics
+        prob_positive_npv = np.mean(npv_values > 0)
+        prob_breakeven_24 = np.mean(breakeven_values <= 24)
+        prob_roi_target = np.mean(roi_values >= self.target_roi)
+        
+        # Sensitivity analysis
+        param_correlations = self._calculate_parameter_correlations(parameter_values, npv_values)
+        param_importance = self._rank_parameter_importance(param_correlations)
+        
+        runtime = time.time() - start_time
+        
+        return MonteCarloResults(
+            npv_distribution=npv_values,
+            roi_distribution=roi_values,
+            breakeven_distribution=breakeven_values,
+            total_value_distribution=value_values,
+            total_cost_distribution=cost_values,
+            npv_stats=npv_stats,
+            roi_stats=roi_stats,
+            breakeven_stats=breakeven_stats,
+            value_stats=value_stats,
+            cost_stats=cost_stats,
+            probability_positive_npv=prob_positive_npv,
+            probability_breakeven_within_24_months=prob_breakeven_24,
+            probability_roi_above_target=prob_roi_target,
+            parameter_correlations=param_correlations,
+            parameter_importance=param_importance,
+            iterations=self.iterations,
+            convergence_achieved=convergence_achieved,
+            runtime_seconds=runtime,
+            random_seed=self.random_seed
+        )
+    
+    def _run_single_iteration(self, base_config: Dict[str, Any], 
+                            sampled_params: Dict[str, float], 
+                            iteration_num: int) -> Dict[str, Any]:
+        """Run a single iteration with sampled parameters"""
+        # Create modified configuration with sampled parameters
+        modified_config = self._apply_sampled_parameters(base_config, sampled_params)
+        
+        # Run the model
+        try:
+            results = self.model_runner(modified_config)
+            return results
+        except Exception as e:
+            raise CalculationError(
+                f"Monte Carlo iteration {iteration_num} failed: {e}",
+                "monte_carlo_iteration"
+            )
+    
+    def _run_parallel_simulations(self, base_config: Dict[str, Any],
+                                 parameter_samples: Dict[str, np.ndarray]) -> Tuple[np.ndarray, ...]:
+        """Run simulations in parallel"""
+        npv_values = np.zeros(self.iterations)
+        roi_values = np.zeros(self.iterations)
+        breakeven_values = np.zeros(self.iterations)
+        value_values = np.zeros(self.iterations)
+        cost_values = np.zeros(self.iterations)
+        
+        with ThreadPoolExecutor(max_workers=self.n_jobs) as executor:
+            # Submit all tasks
+            futures = {}
+            for i in range(self.iterations):
+                params = {k: v[i] for k, v in parameter_samples.items()}
+                future = executor.submit(self._run_single_iteration, base_config, params, i)
+                futures[future] = i
+            
+            # Collect results as they complete
+            for future in as_completed(futures):
+                i = futures[future]
+                try:
+                    results = future.result()
+                    npv_values[i] = results['npv']
+                    roi_values[i] = results['roi_percent']
+                    breakeven_values[i] = results['breakeven_month']
+                    value_values[i] = results['total_value_3y']
+                    cost_values[i] = results['total_cost_3y']
+                except Exception as e:
+                    raise CalculationError(f"Parallel execution failed at iteration {i}: {e}", "parallel_monte_carlo")
+        
+        return npv_values, roi_values, breakeven_values, value_values, cost_values
+    
+    def _apply_sampled_parameters(self, base_config: Dict[str, Any], 
+                                 sampled_params: Dict[str, float]) -> Dict[str, Any]:
+        """Apply sampled parameters to base configuration"""
+        import copy
+        modified_config = copy.deepcopy(base_config)
+        
+        # Map sampled parameters to configuration structure
+        for param_name, value in sampled_params.items():
+            # Parse parameter path (e.g., "impact.feature_cycle_reduction")
+            path_parts = param_name.split('.')
+            
+            # Navigate to the correct location in config
+            current = modified_config
+            for part in path_parts[:-1]:
+                if part not in current:
+                    current[part] = {}
+                current = current[part]
+            
+            # Handle the final parameter
+            final_key = path_parts[-1]
+            
+            # If the parameter has a distribution structure, replace just the value
+            if isinstance(current.get(final_key), dict) and 'value' in current[final_key]:
+                # Keep the structure but update the value
+                current[final_key] = value
+            else:
+                # Set the value directly
+                current[final_key] = value
+        
+        return modified_config
+    
+    def _check_convergence(self, values: np.ndarray) -> bool:
+        """Check if simulation has converged"""
+        if len(values) < 100:
+            return False
+        
+        # Check if running mean has stabilized
+        window_size = max(100, len(values) // 10)
+        running_means = np.convolve(values, np.ones(window_size)/window_size, mode='valid')
+        
+        if len(running_means) < 2:
+            return False
+        
+        # Calculate coefficient of variation of running means
+        cv = np.std(running_means) / np.mean(running_means) if np.mean(running_means) != 0 else 0
+        
+        return cv < self.convergence_threshold
+    
+    def _calculate_statistics(self, values: np.ndarray) -> Dict[str, float]:
+        """Calculate comprehensive statistics for a distribution"""
+        return {
+            'mean': np.mean(values),
+            'median': np.median(values),
+            'std': np.std(values),
+            'min': np.min(values),
+            'max': np.max(values),
+            'p5': np.percentile(values, 5),
+            'p10': np.percentile(values, 10),
+            'p25': np.percentile(values, 25),
+            'p50': np.percentile(values, 50),
+            'p75': np.percentile(values, 75),
+            'p90': np.percentile(values, 90),
+            'p95': np.percentile(values, 95),
+            'skewness': self._calculate_skewness(values),
+            'kurtosis': self._calculate_kurtosis(values)
+        }
+    
+    def _calculate_skewness(self, values: np.ndarray) -> float:
+        """Calculate skewness of distribution"""
+        mean = np.mean(values)
+        std = np.std(values)
+        if std == 0:
+            return 0
+        return np.mean(((values - mean) / std) ** 3)
+    
+    def _calculate_kurtosis(self, values: np.ndarray) -> float:
+        """Calculate kurtosis of distribution"""
+        mean = np.mean(values)
+        std = np.std(values)
+        if std == 0:
+            return 0
+        return np.mean(((values - mean) / std) ** 4) - 3
+    
+    def _calculate_parameter_correlations(self, parameter_values: Dict[str, np.ndarray], 
+                                        target_values: np.ndarray) -> Dict[str, float]:
+        """Calculate correlation between each parameter and the target metric"""
+        correlations = {}
+        
+        for param_name, param_values in parameter_values.items():
+            if np.std(param_values) > 0:  # Only calculate if parameter varies
+                correlation = np.corrcoef(param_values, target_values)[0, 1]
+                correlations[param_name] = correlation
+        
+        return correlations
+    
+    def _rank_parameter_importance(self, correlations: Dict[str, float]) -> List[Tuple[str, float]]:
+        """Rank parameters by their importance (absolute correlation)"""
+        importance = [(param, abs(corr)) for param, corr in correlations.items()]
+        importance.sort(key=lambda x: x[1], reverse=True)
+        return importance
+
+
+def create_parameter_distributions_from_scenario(scenario_config: Dict[str, Any]) -> ParameterDistributions:
+    """
+    Create parameter distributions from scenario configuration.
+    
+    If a parameter has a distribution definition, use it.
+    Otherwise, create a deterministic distribution from the point value.
+    """
+    distributions = ParameterDistributions()
+    
+    # Process each section of the configuration
+    for section_name, section_config in scenario_config.items():
+        if isinstance(section_config, dict):
+            for param_name, param_value in section_config.items():
+                full_param_name = f"{section_name}.{param_name}"
+                
+                if isinstance(param_value, dict) and 'distribution' in param_value:
+                    # Parameter has distribution definition
+                    dist_config = param_value['distribution']
+                    distribution = create_distribution_from_config(dist_config)
+                elif isinstance(param_value, dict) and 'value' in param_value:
+                    # Parameter has a value field but no distribution
+                    distribution = Deterministic(value=float(param_value['value']))
+                else:
+                    # Use deterministic distribution for point value
+                    if isinstance(param_value, (int, float)):
+                        distribution = Deterministic(value=float(param_value))
+                    else:
+                        continue  # Skip non-numeric parameters
+                
+                distributions.add_distribution(full_param_name, distribution)
+    
+    # Add correlations if defined
+    if 'correlations' in scenario_config:
+        for corr_def in scenario_config['correlations']:
+            param1 = corr_def['param1']
+            param2 = corr_def['param2']
+            correlation = corr_def['correlation']
+            distributions.add_correlation(param1, param2, correlation)
+    
+    return distributions

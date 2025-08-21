@@ -95,11 +95,12 @@ class ModelVersion:
 
 
 # Current model version
-CURRENT_VERSION = ModelVersion(1, 0, 0)
+CURRENT_VERSION = ModelVersion(1, 1, 0)
 
 # List of supported versions for reproduction
 SUPPORTED_VERSIONS = [
-    CURRENT_VERSION
+    ModelVersion(1, 0, 0),
+    ModelVersion(1, 1, 0)
 ]
 
 # Version history and breaking changes
@@ -113,6 +114,20 @@ VERSION_HISTORY = {
             "Reproduction engine with validation",
             "Multiple scenario support",
             "Comprehensive reporting"
+        ]
+    },
+    "1.1.0": {
+        "release_date": "2025-08-20",
+        "description": "Add Monte Carlo simulation capabilities",
+        "breaking_changes": [],
+        "new_features": [
+            "Monte Carlo simulation engine with multiple distribution types",
+            "Probabilistic parameter definitions in scenarios",
+            "NPV/ROI confidence intervals and risk assessment",
+            "Sensitivity analysis for parameter importance",
+            "CLI support for Monte Carlo analysis with customizable iterations",
+            "Text-based visualization for distribution results",
+            "Correlation support between parameters"
         ]
     }
 }

@@ -240,8 +240,18 @@ class AdoptionModel:
         return min(boost, 0.3)  # Cap at 30% adoption boost
 
 
-def create_adoption_scenario(scenario: str = "organic") -> AdoptionParameters:
-    """Create adoption parameters for different scenarios"""
+def create_adoption_scenario(scenario_or_params = "organic") -> AdoptionParameters:
+    """Create adoption parameters for different scenarios or custom parameters"""
+    
+    # If a dict is passed, check for 'scenario' key or use dict directly
+    if isinstance(scenario_or_params, dict):
+        if 'scenario' in scenario_or_params:
+            scenario = scenario_or_params['scenario']
+        else:
+            # Custom parameters provided - create directly
+            return AdoptionParameters(**scenario_or_params)
+    else:
+        scenario = scenario_or_params
     
     scenarios = {
         "organic": AdoptionParameters(

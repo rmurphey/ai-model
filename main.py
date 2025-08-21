@@ -22,6 +22,8 @@ from src.model.baseline import BaselineMetrics, create_industry_baseline, calcul
 from src.model.impact_model import ImpactFactors, BusinessImpact, create_impact_scenario
 from src.model.adoption_dynamics import AdoptionParameters, AdoptionModel, create_adoption_scenario
 from src.model.cost_structure import AIToolCosts, CostModel, create_cost_scenario, calculate_breakeven
+from src.model.monte_carlo import MonteCarloEngine, MonteCarloResults, create_parameter_distributions_from_scenario
+from src.model.distributions import ParameterDistributions
 
 
 class AIImpactModel:
@@ -307,6 +309,244 @@ class AIImpactModel:
         print(tabulate(df, headers='keys', tablefmt='grid', showindex=False))
         
         return df
+    
+    def run_monte_carlo(self, scenario_name: str, iterations: int = 1000, 
+                       confidence: float = 0.95, target_roi: float = 100.0,
+                       random_seed: Optional[int] = None) -> MonteCarloResults:
+        """
+        Run Monte Carlo simulation for a scenario.
+        
+        Args:
+            scenario_name: Name of scenario to run
+            iterations: Number of simulation iterations
+            confidence: Confidence level for intervals (e.g., 0.95)
+            target_roi: Target ROI for probability calculations
+            random_seed: Random seed for reproducibility
+            
+        Returns:
+            MonteCarloResults with distributions and statistics
+        """
+        print(section_divider(f"Monte Carlo Simulation: {scenario_name}"))
+        print(f"Running {iterations} iterations...")
+        
+        # Load scenario configuration
+        config = self.load_scenario(scenario_name)
+        
+        # Create parameter distributions from scenario
+        distributions = create_parameter_distributions_from_scenario(config)
+        
+        # Create model runner function that Monte Carlo engine will call
+        def model_runner(sampled_config):
+            """Run the model with sampled parameters"""
+            # This reuses the existing run_scenario logic but with sampled parameters
+            return self._run_scenario_deterministic(sampled_config)
+        
+        # Initialize Monte Carlo engine
+        mc_engine = MonteCarloEngine(
+            model_runner=model_runner,
+            parameter_distributions=distributions,
+            iterations=iterations,
+            confidence_level=confidence,
+            target_roi=target_roi,
+            random_seed=random_seed,
+            n_jobs=1  # Start with sequential execution
+        )
+        
+        # Run simulation
+        results = mc_engine.run(config)
+        
+        # Store results
+        self.results[f"{scenario_name}_monte_carlo"] = results
+        
+        return results
+    
+    def _run_scenario_deterministic(self, config: Dict) -> Dict:
+        """Extract the deterministic scenario logic for reuse in Monte Carlo"""
+        # This is the core logic from run_scenario without the print statements
+        
+        # 1. Create baseline
+        baseline_params = config.get('baseline', {})
+        baseline = create_industry_baseline(baseline_params)
+        
+        # 2. Create impact factors
+        impact_params = config.get('impact', {})
+        impact_factors = create_impact_scenario(impact_params)
+        
+        # 3. Create adoption model
+        adoption_params = config.get('adoption', {})
+        adoption_parameters = create_adoption_scenario(adoption_params)
+        adoption_model = AdoptionModel(adoption_parameters)
+        
+        # 4. Create cost model
+        cost_params = config.get('costs', {})
+        ai_costs = create_cost_scenario(cost_params)
+        cost_model = CostModel(ai_costs, baseline)
+        
+        # 5. Run simulation
+        months = config.get('timeframe_months', 24)
+        
+        adoption_curve = adoption_model.calculate_adoption_curve(months)
+        efficiency_curve = adoption_model.calculate_efficiency_curve(months)
+        effective_adoption = adoption_curve * efficiency_curve
+        
+        costs = cost_model.calculate_total_costs(months, adoption_curve)
+        cost_per_dev = cost_model.calculate_cost_per_developer(months, adoption_curve)
+        
+        monthly_value = np.zeros(months)
+        for month in range(months):
+            monthly_impact = BusinessImpact(baseline, impact_factors, effective_adoption[month])
+            monthly_impact_breakdown = monthly_impact.calculate_total_impact()
+            monthly_value[month] = monthly_impact_breakdown['total_annual_value'] / 12
+        
+        cumulative_value = np.cumsum(monthly_value)
+        cumulative_costs = costs['cumulative']
+        
+        breakeven = calculate_breakeven(costs, {'total': monthly_value})
+        
+        # Calculate NPV
+        discount_rate = config.get('economic', {}).get('discount_rate_annual', DEFAULT_DISCOUNT_RATE_ANNUAL) / MONTHS_PER_YEAR
+        discount_factors = [(1 + discount_rate) ** -i for i in range(months)]
+        npv = sum((monthly_value[i] - costs['total'][i]) * discount_factors[i] for i in range(months))
+        
+        # Calculate final impact
+        final_impact = BusinessImpact(baseline, impact_factors, effective_adoption[-1])
+        final_impact_breakdown = final_impact.calculate_total_impact()
+        
+        # Calculate key metrics
+        total_cost_3y = sum(costs['total'][:min(36, months)])
+        total_value_3y = sum(monthly_value[:min(36, months)])
+        roi_percent = safe_divide((total_value_3y - total_cost_3y), total_cost_3y) * 100
+        annual_cost_per_dev = safe_divide(total_cost_3y / min(3, months/12), baseline.team_size * max(adoption_curve))
+        annual_value_per_dev = safe_divide(total_value_3y / min(3, months/12), baseline.team_size * max(effective_adoption))
+        
+        return {
+            'npv': npv,
+            'roi_percent': roi_percent,
+            'breakeven_month': breakeven,
+            'total_cost_3y': total_cost_3y,
+            'total_value_3y': total_value_3y,
+            'peak_adoption': max(adoption_curve),
+            'annual_cost_per_dev': annual_cost_per_dev,
+            'annual_value_per_dev': annual_value_per_dev,
+            'impact_breakdown': final_impact_breakdown,
+            'baseline': baseline
+        }
+    
+    def print_monte_carlo_summary(self, results: MonteCarloResults):
+        """Print enhanced summary of Monte Carlo simulation results"""
+        from src.model.monte_carlo_viz import (
+            create_distribution_sparkline,
+            create_confidence_interval_visualization,
+            create_risk_gauge,
+            create_outcome_probability_report,
+            create_value_at_risk_report,
+            create_sensitivity_tornado_chart
+        )
+        
+        print()
+        print(header("MONTE CARLO ANALYSIS"))
+        print(f"Iterations: {results.iterations}")
+        print(f"Convergence: {'✓ Achieved' if results.convergence_achieved else '✗ Not achieved'}")
+        print(f"Runtime: {results.runtime_seconds:.1f} seconds")
+        if results.random_seed:
+            print(f"Random Seed: {results.random_seed}")
+        print()
+        
+        # NPV Distribution with sparkline
+        print(header("NPV DISTRIBUTION"))
+        sparkline = create_distribution_sparkline(results.npv_distribution, width=50)
+        print(f"Distribution: {sparkline}")
+        print()
+        print(f"{'Mean':<20} {format_currency(results.npv_stats['mean'])}")
+        print(f"{'Median (P50)':<20} {format_currency(results.npv_stats['p50'])}")
+        print(f"{'Std Deviation':<20} {format_currency(results.npv_stats['std'])}")
+        print()
+        
+        # Confidence interval visualization
+        ci_lower, ci_upper = results.get_confidence_interval('npv')
+        print("95% Confidence Interval:")
+        ci_viz = create_confidence_interval_visualization(
+            ci_lower, ci_upper, results.npv_stats['mean'], 
+            currency=True, width=40
+        )
+        print(ci_viz)
+        print()
+        
+        # Percentiles
+        print("Percentiles:")
+        print(f"  {'P5':<5} {format_currency(results.npv_stats['p5'])}")
+        print(f"  {'P10':<5} {format_currency(results.npv_stats['p10'])}")
+        print(f"  {'P25':<5} {format_currency(results.npv_stats['p25'])}")
+        print(f"  {'P50':<5} {format_currency(results.npv_stats['p50'])}")
+        print(f"  {'P75':<5} {format_currency(results.npv_stats['p75'])}")
+        print(f"  {'P90':<5} {format_currency(results.npv_stats['p90'])}")
+        print(f"  {'P95':<5} {format_currency(results.npv_stats['p95'])}")
+        print()
+        
+        # ROI Distribution with sparkline
+        print(header("ROI DISTRIBUTION"))
+        roi_sparkline = create_distribution_sparkline(results.roi_distribution, width=50)
+        print(f"Distribution: {roi_sparkline}")
+        print()
+        print(f"{'Mean':<20} {results.roi_stats['mean']:.1f}%")
+        print(f"{'Median (P50)':<20} {results.roi_stats['p50']:.1f}%")
+        print(f"{'P10 - P90 Range':<20} {results.roi_stats['p10']:.1f}% - {results.roi_stats['p90']:.1f}%")
+        print()
+        
+        # Breakeven Distribution
+        print(header("BREAKEVEN DISTRIBUTION"))
+        be_sparkline = create_distribution_sparkline(results.breakeven_distribution, width=50)
+        print(f"Distribution: {be_sparkline}")
+        print()
+        print(f"{'Mean':<20} {results.breakeven_stats['mean']:.1f} months")
+        print(f"{'Median (P50)':<20} {results.breakeven_stats['p50']:.1f} months")
+        print(f"{'P10 - P90 Range':<20} {results.breakeven_stats['p10']:.1f} - {results.breakeven_stats['p90']:.1f} months")
+        print()
+        
+        # Risk Metrics with gauges
+        print(header("RISK ANALYSIS"))
+        print(f"{'Positive NPV':<30} {create_risk_gauge(results.probability_positive_npv)}")
+        print(f"{'Breakeven < 24 months':<30} {create_risk_gauge(results.probability_breakeven_within_24_months)}")
+        print(f"{'ROI > 100%':<30} {create_risk_gauge(results.probability_roi_above_target)}")
+        print()
+        
+        # Outcome probabilities
+        print(create_outcome_probability_report(results))
+        print()
+        
+        # Value at Risk
+        print(create_value_at_risk_report(results))
+        print()
+        
+        # Parameter Sensitivity with tornado chart
+        print(header("SENSITIVITY ANALYSIS"))
+        print("Impact on NPV (correlation strength):")
+        print(create_sensitivity_tornado_chart(results.parameter_correlations, top_n=10))
+        print()
+        
+        # Distribution histogram for NPV
+        self._print_distribution_histogram(results.npv_distribution, "NPV Distribution Histogram", currency=True)
+    
+    def _print_distribution_histogram(self, data: np.ndarray, title: str, currency: bool = False, bins: int = 20):
+        """Print a simple text-based histogram"""
+        print(header(title))
+        
+        # Calculate histogram
+        counts, edges = np.histogram(data, bins=bins)
+        max_count = max(counts)
+        
+        # Print histogram
+        for i in range(len(counts)):
+            bar_length = int((counts[i] / max_count) * 40)
+            bar = "█" * bar_length
+            
+            if currency:
+                label = f"${edges[i]/1000:.0f}K - ${edges[i+1]/1000:.0f}K"
+            else:
+                label = f"{edges[i]:.1f} - {edges[i+1]:.1f}"
+            
+            percentage = (counts[i] / len(data)) * 100
+            print(f"{label:<25} {bar:<40} {percentage:.1f}%")
 
 
 def main():
@@ -317,32 +557,83 @@ def main():
                        help='Scenario to run (or "all" for all scenarios)')
     parser.add_argument('--compare', '-c', action='store_true',
                        help='Compare all scenarios')
+    parser.add_argument('--monte-carlo', '-mc', action='store_true',
+                       help='Run Monte Carlo simulation')
+    parser.add_argument('--iterations', '-i', type=int, default=1000,
+                       help='Number of Monte Carlo iterations (default: 1000)')
+    parser.add_argument('--confidence', type=float, default=0.95,
+                       help='Confidence level for intervals (default: 0.95)')
+    parser.add_argument('--seed', type=int, default=None,
+                       help='Random seed for reproducibility')
+    parser.add_argument('--scenario-file', default='src/scenarios/scenarios.yaml',
+                       help='Path to scenario configuration file')
     
     args = parser.parse_args()
     
     # Initialize model
-    model = AIImpactModel()
+    model = AIImpactModel(scenario_file=args.scenario_file)
     
-    # Run scenarios
-    if args.scenario == 'all':
-        # Run all non-task-distribution scenarios
-        for scenario_name in model.scenarios.keys():
-            if scenario_name not in ['task_distributions', 'sensitivity']:
-                results = model.run_scenario(scenario_name)
-                model.print_summary(results)
-    else:
-        results = model.run_scenario(args.scenario)
-        model.print_summary(results)
-    
-    # Compare scenarios if requested
-    if args.compare:
-        # Run standard scenarios for comparison
-        standard_scenarios = ['conservative_startup', 'moderate_enterprise', 'aggressive_scaleup']
-        for scenario in standard_scenarios:
-            if scenario not in model.results:
-                model.run_scenario(scenario)
+    # Run Monte Carlo simulation if requested
+    if args.monte_carlo:
+        scenario_to_run = args.scenario
+        model_mc = model
         
-        model.compare_scenarios(standard_scenarios)
+        # Check if using a Monte Carlo scenario file
+        mc_scenario_file = args.scenario_file.replace('.yaml', '_monte_carlo.yaml')
+        if os.path.exists(mc_scenario_file) and args.scenario_file == 'src/scenarios/scenarios.yaml':
+            # Load Monte Carlo scenarios if available and using default file
+            model_mc = AIImpactModel(scenario_file=mc_scenario_file)
+            
+            # Check if Monte Carlo version exists
+            if f"{scenario_to_run}_monte_carlo" in model_mc.scenarios:
+                scenario_to_run = f"{scenario_to_run}_monte_carlo"
+            elif scenario_to_run not in model_mc.scenarios:
+                print(f"Warning: Scenario '{scenario_to_run}' not found in Monte Carlo scenarios, using deterministic version")
+                model_mc = model
+        elif args.scenario_file != 'src/scenarios/scenarios.yaml':
+            # User specified a custom scenario file
+            model_mc = model
+            if scenario_to_run not in model_mc.scenarios:
+                print(f"Error: Scenario '{scenario_to_run}' not found in {args.scenario_file}")
+                print(f"Available scenarios: {', '.join(model_mc.scenarios.keys())}")
+                sys.exit(1)
+        
+        # First, run the deterministic scenario to show baseline report
+        print(section_divider("DETERMINISTIC BASELINE ANALYSIS"))
+        deterministic_results = model.run_scenario(args.scenario if args.scenario in model.scenarios else scenario_to_run.replace('_monte_carlo', ''))
+        model.print_summary(deterministic_results)
+        
+        # Then run Monte Carlo simulation
+        print()
+        print(section_divider("PROBABILISTIC MONTE CARLO ANALYSIS"))
+        mc_results = model_mc.run_monte_carlo(
+            scenario_to_run,
+            iterations=args.iterations,
+            confidence=args.confidence,
+            random_seed=args.seed
+        )
+        model_mc.print_monte_carlo_summary(mc_results)
+    else:
+        # Run deterministic scenarios
+        if args.scenario == 'all':
+            # Run all non-task-distribution scenarios
+            for scenario_name in model.scenarios.keys():
+                if scenario_name not in ['task_distributions', 'sensitivity', 'monte_carlo_template']:
+                    results = model.run_scenario(scenario_name)
+                    model.print_summary(results)
+        else:
+            results = model.run_scenario(args.scenario)
+            model.print_summary(results)
+        
+        # Compare scenarios if requested
+        if args.compare:
+            # Run standard scenarios for comparison
+            standard_scenarios = ['conservative_startup', 'moderate_enterprise', 'aggressive_scaleup']
+            for scenario in standard_scenarios:
+                if scenario not in model.results:
+                    model.run_scenario(scenario)
+            
+            model.compare_scenarios(standard_scenarios)
 
 
 if __name__ == "__main__":
