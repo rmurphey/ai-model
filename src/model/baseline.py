@@ -172,6 +172,10 @@ def create_industry_baseline(industry_or_params = "enterprise") -> BaselineMetri
             valid_fields = {f.name for f in fields(BaselineMetrics)}
             filtered_params = {k: v for k, v in industry_or_params.items() if k in valid_fields}
             
+            # Handle 'other_percentage' as 'meetings_percentage' if present
+            if 'other_percentage' in industry_or_params and 'meetings_percentage' not in filtered_params:
+                filtered_params['meetings_percentage'] = industry_or_params['other_percentage']
+            
             # Add default values for missing required fields
             defaults = {
                 'meetings_percentage': 0.15,  # Default 15% time in meetings

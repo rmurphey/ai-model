@@ -48,35 +48,39 @@ class ReportGenerator:
         
         # Executive Summary
         report.append("## Executive Summary\n")
-        npv = self.results.get('financial_metrics', {}).get('npv', 0)
-        roi = self.results.get('financial_metrics', {}).get('roi', 0)
-        payback = self.results.get('financial_metrics', {}).get('payback_period_months', 0)
+        npv = float(self.results.get('npv', 0))
+        roi = float(self.results.get('roi_percent', 0))
+        payback = self.results.get('breakeven_month')
+        if payback is not None:
+            payback = float(payback)
+        else:
+            payback = 0
         
         report.append(f"- **NPV:** ${npv:,.2f}")
         report.append(f"- **ROI:** {roi:.1f}%")
         report.append(f"- **Payback Period:** {payback:.1f} months\n")
         
         # Time Efficiency
-        report.append("## Time Efficiency Analysis\n")
-        time_metrics = self.results.get('time_efficiency', {})
-        report.append(f"- **Time Saved per Month:** {time_metrics.get('time_saved_per_month', 0):.1f} hours")
-        report.append(f"- **Efficiency Gain:** {time_metrics.get('efficiency_gain', 0):.1f}%")
-        report.append(f"- **Total Time Saved:** {time_metrics.get('total_time_saved', 0):.1f} hours\n")
+        report.append("## Efficiency Analysis\n")
+        if 'efficiency' in self.results and self.results['efficiency'] is not None:
+            final_efficiency = float(self.results['efficiency'][-1] * 100)
+            peak_adoption = float(self.results.get('peak_adoption', 0) * 100)
+            report.append(f"- **Final Efficiency:** {final_efficiency:.1f}%")
+            report.append(f"- **Peak Adoption:** {peak_adoption:.1f}%\n")
         
         # Cost Analysis
         report.append("## Cost Analysis\n")
-        costs = self.results.get('costs', {})
-        report.append(f"- **Development Costs:** ${costs.get('development', 0):,.2f}")
-        report.append(f"- **Infrastructure Costs:** ${costs.get('infrastructure', 0):,.2f}")
-        report.append(f"- **Training Costs:** ${costs.get('training', 0):,.2f}")
-        report.append(f"- **Total Implementation Costs:** ${costs.get('total_implementation', 0):,.2f}\n")
+        total_cost = float(self.results.get('total_cost_3y', 0))
+        annual_cost_per_dev = float(self.results.get('annual_cost_per_dev', 0))
+        report.append(f"- **Total 3-Year Cost:** ${total_cost:,.2f}")
+        report.append(f"- **Annual Cost per Developer:** ${annual_cost_per_dev:,.2f}\n")
         
-        # Productivity Metrics
-        report.append("## Productivity Metrics\n")
-        productivity = self.results.get('productivity_metrics', {})
-        report.append(f"- **Output Increase:** {productivity.get('output_increase', 0):.1f}%")
-        report.append(f"- **FTE Equivalent:** {productivity.get('fte_equivalent', 0):.2f}")
-        report.append(f"- **Productivity Multiplier:** {productivity.get('productivity_multiplier', 0):.2f}x\n")
+        # Value Creation
+        report.append("## Value Creation\n")
+        total_value = float(self.results.get('total_value_3y', 0))
+        annual_value_per_dev = float(self.results.get('annual_value_per_dev', 0))
+        report.append(f"- **Total 3-Year Value:** ${total_value:,.2f}")
+        report.append(f"- **Annual Value per Developer:** ${annual_value_per_dev:,.2f}\n")
         
         # Monte Carlo Results (if present)
         if 'monte_carlo' in self.results:
@@ -126,27 +130,32 @@ class ReportGenerator:
         
         # Financial metrics
         lines.append("\nFINANCIAL METRICS:")
-        npv = self.results.get('financial_metrics', {}).get('npv', 0)
-        roi = self.results.get('financial_metrics', {}).get('roi', 0)
-        payback = self.results.get('financial_metrics', {}).get('payback_period_months', 0)
+        npv = float(self.results.get('npv', 0))
+        roi = float(self.results.get('roi_percent', 0))
+        payback = self.results.get('breakeven_month')
+        if payback is not None:
+            payback = float(payback)
+        else:
+            payback = 0
         
         lines.append(f"  NPV: ${npv:,.2f}")
         lines.append(f"  ROI: {roi:.1f}%")
         lines.append(f"  Payback Period: {payback:.1f} months")
         
-        # Time efficiency
-        lines.append("\nTIME EFFICIENCY:")
-        time_metrics = self.results.get('time_efficiency', {})
-        lines.append(f"  Time Saved/Month: {time_metrics.get('time_saved_per_month', 0):.1f} hours")
-        lines.append(f"  Efficiency Gain: {time_metrics.get('efficiency_gain', 0):.1f}%")
+        # Efficiency
+        lines.append("\nEFFICIENCY:")
+        if 'efficiency' in self.results and self.results['efficiency'] is not None:
+            final_efficiency = float(self.results['efficiency'][-1] * 100)
+            peak_adoption = float(self.results.get('peak_adoption', 0) * 100)
+            lines.append(f"  Final Efficiency: {final_efficiency:.1f}%")
+            lines.append(f"  Peak Adoption: {peak_adoption:.1f}%")
         
         # Costs
         lines.append("\nCOSTS:")
-        costs = self.results.get('costs', {})
-        lines.append(f"  Development: ${costs.get('development', 0):,.2f}")
-        lines.append(f"  Infrastructure: ${costs.get('infrastructure', 0):,.2f}")
-        lines.append(f"  Training: ${costs.get('training', 0):,.2f}")
-        lines.append(f"  Total: ${costs.get('total_implementation', 0):,.2f}")
+        total_cost = float(self.results.get('total_cost_3y', 0))
+        annual_cost_per_dev = float(self.results.get('annual_cost_per_dev', 0))
+        lines.append(f"  Total 3-Year Cost: ${total_cost:,.2f}")
+        lines.append(f"  Annual Cost/Dev: ${annual_cost_per_dev:,.2f}")
         
         lines.append("\n" + "=" * 60)
         
