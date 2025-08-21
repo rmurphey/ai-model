@@ -149,7 +149,8 @@ class AIImpactModel:
         elif isinstance(config['baseline'], str):
             baseline = create_industry_baseline(config['baseline'])
         else:
-            baseline = BaselineMetrics(**config['baseline'])
+            # Pass the dict to create_industry_baseline which will filter fields
+            baseline = create_industry_baseline(config['baseline'])
         
         # 2. Setup adoption model
         if isinstance(config['adoption'], dict) and 'scenario' in config['adoption']:

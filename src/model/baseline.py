@@ -3,7 +3,7 @@ Baseline metrics for current state assessment.
 Establishes the "before AI" state to measure improvements against.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Dict, List, Optional
 import numpy as np
 from ..utils.math_helpers import safe_divide, validate_positive, validate_ratio, validate_ratios_sum_to_one
@@ -168,8 +168,21 @@ def create_industry_baseline(industry_or_params = "enterprise") -> BaselineMetri
         if 'profile' in industry_or_params:
             industry = industry_or_params['profile']
         else:
-            # Custom parameters provided - create directly
-            return BaselineMetrics(**industry_or_params)
+            # Custom parameters provided - filter to valid fields only
+            valid_fields = {f.name for f in fields(BaselineMetrics)}
+            filtered_params = {k: v for k, v in industry_or_params.items() if k in valid_fields}
+            
+            # Add default values for missing required fields
+            defaults = {
+                'meetings_percentage': 0.15,  # Default 15% time in meetings
+                'pr_rejection_rate': 0.15      # Default 15% PR rejection rate
+            }
+            
+            for field, default_value in defaults.items():
+                if field not in filtered_params:
+                    filtered_params[field] = default_value
+            
+            return BaselineMetrics(**filtered_params)
     else:
         industry = industry_or_params
     

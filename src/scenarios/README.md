@@ -228,9 +228,10 @@ baseline:
   senior_ratio: 0.2                # Percentage of senior developers (0-1)
   
   # Annual fully-loaded costs per developer level (USD)
-  junior_flc: 130000               # Junior developer total cost
-  mid_flc: 180000                  # Mid-level developer total cost
-  senior_flc: 250000               # Senior developer total cost
+  # Note: FLC = base salary × 1.3-1.5 to account for benefits, overhead, etc.
+  junior_flc: 130000               # Junior developer total cost (salary ~$85-90k)
+  mid_flc: 180000                  # Mid-level developer total cost (salary ~$120-130k)
+  senior_flc: 250000               # Senior developer total cost (salary ~$165-180k)
 ```
 
 #### Development Metrics
@@ -257,16 +258,12 @@ baseline:
 #### Capacity Allocation
 ```yaml
 baseline:
-  # How developers spend their time (should approximately sum to 1.0)
-  effective_capacity_hours: 1600    # Annual productive hours per developer
+  # How developers spend their time (must sum to 1.0)
   new_feature_percentage: 0.4       # Time on new features (0-1)
   maintenance_percentage: 0.4       # Time on maintenance (0-1)
   tech_debt_percentage: 0.15        # Time on technical debt (0-1)
   meetings_percentage: 0.05         # Time in meetings/admin (0-1)
-  other_percentage: 0.0             # Other activities (0-1)
-  
-  # Delivery metrics
-  feature_delivery_rate: 14         # Features per developer per year (> 0)
+  # Note: The sum of these percentages must equal 1.0 (±0.01 tolerance)
 ```
 
 ### Adoption Parameters
