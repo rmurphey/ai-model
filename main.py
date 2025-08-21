@@ -297,8 +297,10 @@ class AIImpactModel:
         opportunity = calculate_opportunity_cost(results['baseline'])
         print()
         print(header("OPPORTUNITY COST ANALYSIS"))
-        print(f"{metric('Current inefficiency cost'):<30} {error(f'${opportunity["total_opportunity_cost"]:,.0f}/year')}")
-        print(f"{metric('AI tool value capture'):<30} {success(f'${results["impact_breakdown"]["total_annual_value"]:,.0f}/year')}")
+        inefficiency_cost_str = f'${opportunity["total_opportunity_cost"]:,.0f}/year'
+        print(f"{metric('Current inefficiency cost'):<30} {error(inefficiency_cost_str)}")
+        ai_value_str = f'${results["impact_breakdown"]["total_annual_value"]:,.0f}/year'
+        print(f"{metric('AI tool value capture'):<30} {success(ai_value_str)}")
         
         efficiency_gain = (results['impact_breakdown']['total_annual_value']/opportunity['total_opportunity_cost'])*100
         efficiency_color = success(f'{efficiency_gain:.1f}%') if efficiency_gain > 20 else warning(f'{efficiency_gain:.1f}%')
