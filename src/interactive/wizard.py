@@ -83,7 +83,7 @@ class InteractiveWizard:
         
         # Collect essential parameters
         display_info("[Question 1/5] Company Profile")
-        team_size = get_numeric_input("What is your current team size?", default=50, min_val=1, max_val=10000)
+        team_size = get_numeric_input("What is your current team size?", default=50, min_val=1, max_val=10000, integer_only=True)
         
         display_info("\n[Question 2/5] Team Composition")
         composition = select_from_menu(
@@ -141,7 +141,8 @@ class InteractiveWizard:
             "Analysis timeframe in months",
             default=24,
             min_val=6,
-            max_val=60
+            max_val=60,
+            integer_only=True
         )
         
         # Build scenario from inputs
@@ -166,7 +167,7 @@ class InteractiveWizard:
         
         # Company Profile Section
         display_info("=== Company Profile ===")
-        team_size = get_numeric_input("Team size", default=50, min_val=1, max_val=10000)
+        team_size = get_numeric_input("Team size", default=50, min_val=1, max_val=10000, integer_only=True)
         
         junior_ratio = get_numeric_input("Junior developers (%)", default=30, min_val=0, max_val=100) / 100
         mid_ratio = get_numeric_input("Mid-level developers (%)", default=50, min_val=0, max_val=100) / 100
@@ -302,7 +303,8 @@ class InteractiveWizard:
             "Analysis timeframe (months)",
             default=24,
             min_val=6,
-            max_val=60
+            max_val=60,
+            integer_only=True
         )
         
         # Build detailed scenario
