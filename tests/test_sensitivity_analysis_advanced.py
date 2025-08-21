@@ -1,0 +1,339 @@
+"""
+Advanced tests for sensitivity analysis module.
+"""
+
+import pytest
+import numpy as np
+from unittest.mock import patch, Mock, MagicMock
+from typing import Dict, Any
+
+from src.analysis.sensitivity_analysis import (
+    SensitivityResults,
+    SobolAnalyzer,
+    perform_sensitivity_analysis,
+    run_sensitivity_analysis
+)
+from src.model.distributions import Distribution, ParameterDistributions
+
+
+class TestSensitivityResults:
+    """Test SensitivityResults dataclass"""
+    
+    def test_sensitivity_results_creation(self):
+        """Test creating SensitivityResults"""
+        results = SensitivityResults(
+            first_order_indices={"param1": 0.3, "param2": 0.5},
+            total_indices={"param1": 0.4, "param2": 0.6},
+            second_order_indices={("param1", "param2"): 0.1},
+            partial_dependence={"param1": np.array([1, 2, 3])},
+            parameter_ranges={"param1": (0, 1), "param2": (5, 10)},
+            convergence_achieved=True,
+            variance_explained=0.85,
+            computation_time=2.5
+        )
+        
+        assert results.first_order_indices["param1"] == 0.3
+        assert results.total_indices["param2"] == 0.6
+        assert results.convergence_achieved is True
+        assert results.variance_explained == 0.85
+        assert results.computation_time == 2.5
+
+
+class TestSobolAnalyzer:
+    """Test SobolAnalyzer class"""
+    
+    @pytest.fixture
+    def simple_distributions(self):
+        """Create simple parameter distributions"""
+        return ParameterDistributions({
+            "param1": Distribution(
+                type="uniform",
+                parameters={"min": 0, "max": 1}
+            ),
+            "param2": Distribution(
+                type="normal",
+                parameters={"mean": 5, "std": 1}
+            )
+        })
+    
+    @pytest.fixture
+    def simple_model(self):
+        """Create a simple model function"""
+        def model(params: Dict[str, float]) -> float:
+            # Simple linear combination
+            return params["param1"] * 2 + params["param2"] * 0.5
+        return model
+    
+    def test_sobol_analyzer_initialization(self, simple_model, simple_distributions):
+        """Test SobolAnalyzer initialization"""
+        analyzer = SobolAnalyzer(simple_model, simple_distributions)
+        
+        assert analyzer.model_func == simple_model
+        assert analyzer.parameter_distributions == simple_distributions
+        assert analyzer.parameter_names == ["param1", "param2"]
+        assert analyzer.n_params == 2
+    
+    def test_generate_samples(self, simple_model, simple_distributions):
+        """Test sample generation for Sobol analysis"""
+        analyzer = SobolAnalyzer(simple_model, simple_distributions)
+        
+        samples = analyzer._generate_samples(n_samples=64)
+        
+        # Check shape: (2 * n_params + 2) * n_samples x n_params
+        expected_rows = (2 * 2 + 2) * 64  # 384
+        assert samples.shape == (expected_rows, 2)
+        
+        # Check values are within expected ranges
+        param1_values = samples[:, 0]
+        param2_values = samples[:, 1]
+        
+        assert np.all(param1_values >= 0)
+        assert np.all(param1_values <= 1)
+        # Normal distribution can have outliers, check most are reasonable
+        assert np.percentile(param2_values, 1) > 2  # rough check
+        assert np.percentile(param2_values, 99) < 8
+    
+    def test_evaluate_model_batch(self, simple_model, simple_distributions):
+        """Test batch model evaluation"""
+        analyzer = SobolAnalyzer(simple_model, simple_distributions)
+        
+        samples = np.array([
+            [0.5, 5.0],
+            [1.0, 6.0],
+            [0.0, 4.0]
+        ])
+        
+        results = analyzer._evaluate_model_batch(samples)
+        
+        # Check results match expected values
+        # model: param1 * 2 + param2 * 0.5
+        expected = [
+            0.5 * 2 + 5.0 * 0.5,  # 3.5
+            1.0 * 2 + 6.0 * 0.5,  # 5.0
+            0.0 * 2 + 4.0 * 0.5   # 2.0
+        ]
+        
+        np.testing.assert_array_almost_equal(results, expected)
+    
+    def test_compute_indices(self, simple_model, simple_distributions):
+        """Test Sobol indices computation"""
+        analyzer = SobolAnalyzer(simple_model, simple_distributions)
+        
+        # Generate small sample for testing
+        n = 16
+        samples = analyzer._generate_samples(n)
+        Y = analyzer._evaluate_model_batch(samples)
+        
+        first_order, total = analyzer._compute_indices(Y, n)
+        
+        # Check structure
+        assert "param1" in first_order
+        assert "param2" in first_order
+        assert "param1" in total
+        assert "param2" in total
+        
+        # Check values are reasonable (between 0 and 1)
+        for key in first_order:
+            assert 0 <= first_order[key] <= 1
+            assert 0 <= total[key] <= 1
+            # Total should be >= first order
+            assert total[key] >= first_order[key]
+    
+    def test_calculate_indices_basic(self, simple_model, simple_distributions):
+        """Test full indices calculation"""
+        analyzer = SobolAnalyzer(simple_model, simple_distributions)
+        
+        results = analyzer.calculate_indices(n_samples=32, calc_second_order=False)
+        
+        assert isinstance(results, SensitivityResults)
+        assert len(results.first_order_indices) == 2
+        assert len(results.total_indices) == 2
+        assert results.computation_time > 0
+        
+        # For this linear model, param1 should have higher importance
+        assert results.first_order_indices["param1"] > 0
+    
+    def test_calculate_indices_with_second_order(self, simple_model, simple_distributions):
+        """Test indices calculation with second-order interactions"""
+        analyzer = SobolAnalyzer(simple_model, simple_distributions)
+        
+        results = analyzer.calculate_indices(n_samples=32, calc_second_order=True)
+        
+        # Should have second order indices
+        assert len(results.second_order_indices) > 0
+        assert ("param1", "param2") in results.second_order_indices
+    
+    def test_check_convergence(self, simple_model, simple_distributions):
+        """Test convergence checking"""
+        analyzer = SobolAnalyzer(simple_model, simple_distributions)
+        
+        # Test with identical indices (perfect convergence)
+        indices1 = {"param1": 0.5, "param2": 0.5}
+        indices2 = {"param1": 0.5, "param2": 0.5}
+        
+        assert analyzer._check_convergence(indices1, indices2, tolerance=0.01) is True
+        
+        # Test with different indices (no convergence)
+        indices3 = {"param1": 0.3, "param2": 0.7}
+        
+        assert analyzer._check_convergence(indices1, indices3, tolerance=0.01) is False
+
+
+class TestSensitivityAnalysisFunctions:
+    """Test module-level functions"""
+    
+    def test_perform_sensitivity_analysis(self):
+        """Test perform_sensitivity_analysis function"""
+        def dummy_model(params):
+            return params.get("x", 0) ** 2
+        
+        distributions = ParameterDistributions({
+            "x": Distribution(type="uniform", parameters={"min": 0, "max": 1})
+        })
+        
+        with patch('src.analysis.sensitivity_analysis.cached_result') as mock_cache:
+            # Make decorator pass through
+            mock_cache.side_effect = lambda **kwargs: lambda f: f
+            
+            results = perform_sensitivity_analysis(
+                "test_scenario",
+                dummy_model,
+                distributions,
+                n_samples=16
+            )
+            
+            assert isinstance(results, SensitivityResults)
+            assert "x" in results.first_order_indices
+    
+    @patch('src.analysis.sensitivity_analysis.load_scenario')
+    @patch('src.analysis.sensitivity_analysis.AIImpactModel')
+    def test_run_sensitivity_analysis(self, mock_model_class, mock_load_scenario):
+        """Test run_sensitivity_analysis convenience function"""
+        # Mock scenario config
+        mock_config = {
+            'adoption': {'early_adopters': 0.15},
+            'impact': {
+                'feature_cycle_reduction': 0.25,
+                'defect_reduction': 0.30
+            },
+            'costs': {
+                'cost_per_seat_month': 50,
+                'token_price_per_million': 8
+            }
+        }
+        mock_load_scenario.return_value = mock_config
+        
+        # Mock model instance
+        mock_model = Mock()
+        mock_model._run_scenario_cached.return_value = {
+            'financial': {'npv': 1000000}
+        }
+        mock_model_class.return_value = mock_model
+        
+        # Run analysis
+        results = run_sensitivity_analysis("test_scenario", n_samples=16)
+        
+        assert isinstance(results, dict)
+        assert 'ranked_parameters' in results
+        assert 'variance_explained' in results
+        assert 'convergence_achieved' in results
+        assert 'computation_time' in results
+        
+        # Check ranked parameters structure
+        if results['ranked_parameters']:
+            param = results['ranked_parameters'][0]
+            assert 'name' in param
+            assert 'importance' in param
+    
+    @patch('src.analysis.sensitivity_analysis.load_scenario')
+    def test_run_sensitivity_analysis_error_handling(self, mock_load_scenario):
+        """Test error handling in run_sensitivity_analysis"""
+        mock_load_scenario.return_value = {}
+        
+        # Should handle missing config gracefully
+        results = run_sensitivity_analysis("bad_scenario", n_samples=8)
+        
+        assert isinstance(results, dict)
+        assert 'ranked_parameters' in results
+
+
+class TestSensitivityAnalysisIntegration:
+    """Integration tests for sensitivity analysis"""
+    
+    def test_nonlinear_model_sensitivity(self):
+        """Test sensitivity analysis on a nonlinear model"""
+        def nonlinear_model(params):
+            # Ishigami function - classic test for sensitivity analysis
+            x1 = params["x1"]
+            x2 = params["x2"]
+            x3 = params["x3"]
+            return np.sin(x1) + 7 * np.sin(x2)**2 + 0.1 * x3**4 * np.sin(x1)
+        
+        distributions = ParameterDistributions({
+            "x1": Distribution(type="uniform", parameters={"min": -np.pi, "max": np.pi}),
+            "x2": Distribution(type="uniform", parameters={"min": -np.pi, "max": np.pi}),
+            "x3": Distribution(type="uniform", parameters={"min": -np.pi, "max": np.pi})
+        })
+        
+        analyzer = SobolAnalyzer(nonlinear_model, distributions)
+        results = analyzer.calculate_indices(n_samples=128)
+        
+        # x2 should have highest first-order effect for Ishigami function
+        assert results.first_order_indices["x2"] > results.first_order_indices["x1"]
+        assert results.first_order_indices["x2"] > results.first_order_indices["x3"]
+        
+        # x1 and x3 interact, so total indices should be higher than first-order
+        assert results.total_indices["x1"] > results.first_order_indices["x1"]
+        assert results.total_indices["x3"] > results.first_order_indices["x3"]
+    
+    def test_parallel_evaluation(self):
+        """Test parallel model evaluation"""
+        def slow_model(params):
+            # Simulate slow computation
+            import time
+            time.sleep(0.001)
+            return params["a"] + params["b"]
+        
+        distributions = ParameterDistributions({
+            "a": Distribution(type="uniform", parameters={"min": 0, "max": 1}),
+            "b": Distribution(type="uniform", parameters={"min": 0, "max": 1})
+        })
+        
+        analyzer = SobolAnalyzer(slow_model, distributions)
+        
+        # Should complete despite slow model due to parallel processing
+        results = analyzer.calculate_indices(n_samples=16)
+        
+        assert results.computation_time < 10  # Should be fast with parallelization
+        assert results.convergence_achieved is not None
+    
+    def test_edge_cases(self):
+        """Test edge cases in sensitivity analysis"""
+        # Test with single parameter
+        def single_param_model(params):
+            return params["only"] * 2
+        
+        single_dist = ParameterDistributions({
+            "only": Distribution(type="uniform", parameters={"min": 0, "max": 1})
+        })
+        
+        analyzer = SobolAnalyzer(single_param_model, single_dist)
+        results = analyzer.calculate_indices(n_samples=16)
+        
+        # Single parameter should explain all variance
+        assert results.first_order_indices["only"] > 0.9
+        assert results.total_indices["only"] > 0.9
+        
+        # Test with constant model
+        def constant_model(params):
+            return 42.0
+        
+        const_dist = ParameterDistributions({
+            "unused": Distribution(type="uniform", parameters={"min": 0, "max": 1})
+        })
+        
+        analyzer2 = SobolAnalyzer(constant_model, const_dist)
+        results2 = analyzer2.calculate_indices(n_samples=16)
+        
+        # No parameter should have influence
+        assert abs(results2.first_order_indices["unused"]) < 0.1

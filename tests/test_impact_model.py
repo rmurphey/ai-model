@@ -138,7 +138,7 @@ class TestBusinessImpact:
     def test_business_impact_creation(self, business_impact):
         """Test that BusinessImpact can be created"""
         assert business_impact.adoption_rate == 0.5
-        assert business_impact.baseline.team_size == 50
+        assert business_impact.baseline.team_size == 150  # Updated to match new enterprise default
         assert business_impact.factors.feature_cycle_reduction == 0.25
         
     def test_calculate_time_value_structure(self, business_impact):

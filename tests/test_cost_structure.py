@@ -126,7 +126,7 @@ class TestCostModel:
     def test_cost_model_creation(self, cost_model):
         """Test that CostModel can be created"""
         assert cost_model.costs.cost_per_seat_month == 50
-        assert cost_model.baseline.team_size == 50
+        assert cost_model.baseline.team_size == 150  # Updated to match new enterprise default
         
     def test_calculate_licensing_costs_structure(self, cost_model, adoption_curve):
         """Test licensing costs calculation structure"""
