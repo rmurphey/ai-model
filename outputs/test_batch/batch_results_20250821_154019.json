@@ -1,0 +1,35 @@
+[
+  {
+    "scenario": "conservative_startup",
+    "success": true,
+    "execution_time": 0.02318096160888672,
+    "cache_hit": false,
+    "error": null,
+    "metrics": {
+      "npv": 520736.8849505404,
+      "roi_percent": 370.1027165131279,
+      "breakeven_month": 2,
+      "peak_adoption": 0.7785280629227517
+    }
+  },
+  {
+    "scenario": "moderate_enterprise",
+    "success": true,
+    "execution_time": 0.026514768600463867,
+    "cache_hit": false,
+    "error": null,
+    "metrics": {
+      "npv": 22690641.685214978,
+      "roi_percent": 397.63085572209576,
+      "breakeven_month": 2,
+      "peak_adoption": 0.7785280629227517
+    }
+  },
+  {
+    "scenario": "aggressive_scaleup",
+    "success": false,
+    "execution_time": 0.011554718017578125,
+    "cache_hit": false,
+    "error": "Scenario 'aggressive_scaleup': not found in configuration\n\ud83d\udccb Available scenarios:\n   \u2022 moderate_enterprise\n   \u2022 conservative_startup\n\ud83d\udcc1 Configuration file: src/scenarios/scenarios.yaml\n\ud83d\udd27 Resolution Steps:\n   1. Check spelling of scenario name\n   2. Use '--list' to see all available scenarios\n   3. Verify scenario exists in configuration file"
+  }
+]
