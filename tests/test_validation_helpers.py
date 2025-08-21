@@ -41,9 +41,14 @@ class TestValidateScenarioConfig:
         config_with_detailed_baseline = {
             'baseline': {
                 'team_size': 50,
-                # Missing annual_salary, total_working_days
+                # This is OK - team_size is the only required field for baseline
             },
-            'adoption': {'scenario': 'grassroots'},
+            'adoption': {
+                # Missing required fields: initial_adopters, early_adopters
+                'early_majority': 0.35,
+                'late_majority': 0.35,
+                'laggards': 0.10
+            },
             'impact': {'scenario': 'moderate'},
             'costs': {'scenario': 'enterprise'},
             'timeframe_months': 36
@@ -175,9 +180,11 @@ class TestValidateFinancialParameters:
     def test_valid_financial_parameters(self):
         """Test valid financial parameters"""
         valid_params = {
-            'annual_salary': 75000,
-            'license_cost_monthly': 25,
-            'setup_cost_one_time': 5000
+            'junior_flc': 75000,
+            'mid_flc': 100000,
+            'senior_flc': 150000,
+            'cost_per_seat_month': 25,
+            'infrastructure_setup': 5000
         }
         # Should not raise any exceptions
         validate_financial_parameters(valid_params, "baseline")
@@ -185,8 +192,8 @@ class TestValidateFinancialParameters:
     def test_non_numeric_financial_values(self):
         """Test error for non-numeric financial values"""
         invalid_params = {
-            'annual_salary': "seventy-five thousand",
-            'license_cost_monthly': 25
+            'junior_flc': "seventy-five thousand",
+            'cost_per_seat_month': 25
         }
         
         with pytest.raises(ValidationError, match="positive number \\(dollar amount\\)"):
@@ -195,7 +202,7 @@ class TestValidateFinancialParameters:
     def test_unrealistically_low_salary(self):
         """Test error for unrealistically low salary"""
         invalid_params = {
-            'annual_salary': 500  # Too low
+            'junior_flc': 500  # Too low
         }
         
         with pytest.raises(ValidationError, match="amount >= \\$1000"):
@@ -204,7 +211,7 @@ class TestValidateFinancialParameters:
     def test_unrealistically_high_salary(self):
         """Test error for unrealistically high salary"""
         invalid_params = {
-            'annual_salary': 1500000  # Too high
+            'senior_flc': 1500000  # Too high
         }
         
         with pytest.raises(ValidationError, match="amount <= \\$1000000"):
@@ -213,7 +220,7 @@ class TestValidateFinancialParameters:
     def test_negative_financial_values(self):
         """Test error for negative financial values"""
         invalid_params = {
-            'license_cost_monthly': -10
+            'cost_per_seat_month': -10
         }
         
         with pytest.raises(ValidationError, match="amount >= \\$0"):
@@ -264,29 +271,34 @@ class TestSuggestParameterFixes:
     def test_ratio_context_suggestions(self):
         """Test suggestions for ratio-related errors"""
         suggestions = suggest_parameter_fixes("invalid ratio", 1.5)
-        assert "Convert percentages to decimals" in suggestions
-        assert "0.05 for 5%, 0.15 for 15%" in suggestions
+        suggestions_text = ' '.join(suggestions)  # Join list to search in text
+        assert "Convert percentages to decimals" in suggestions_text
+        assert "0.05 for 5%, 0.15 for 15%" in suggestions_text
         
     def test_salary_context_suggestions(self):
         """Test suggestions for salary-related errors"""
         suggestions = suggest_parameter_fixes("invalid salary", 500)
-        assert "Use annual salary in dollars" in suggestions
-        assert "$40,000 - $200,000 for developers" in suggestions
+        suggestions_text = ' '.join(suggestions)
+        assert "Use annual salary in dollars" in suggestions_text
+        assert "$40,000 - $200,000 for developers" in suggestions_text
         
     def test_cost_context_suggestions(self):
         """Test suggestions for cost-related errors"""
         suggestions = suggest_parameter_fixes("invalid cost", -100)
-        assert "Enter costs in dollars without currency symbols" in suggestions
-        assert "For monthly costs, use per-user amounts" in suggestions
+        suggestions_text = ' '.join(suggestions)
+        assert "Enter costs in dollars without currency symbols" in suggestions_text
+        assert "For monthly costs, use per-user amounts" in suggestions_text
         
     def test_team_context_suggestions(self):
         """Test suggestions for team-related errors"""
         suggestions = suggest_parameter_fixes("invalid team size", 0)
-        assert "Count only developers who will use AI tools" in suggestions
-        assert "Use headcount or FTE" in suggestions
+        suggestions_text = ' '.join(suggestions)
+        assert "Count only developers who will use AI tools" in suggestions_text
+        assert "Use headcount or FTE" in suggestions_text
         
     def test_generic_context_suggestions(self):
         """Test generic suggestions for unknown error types"""
         suggestions = suggest_parameter_fixes("unknown error", "bad_value")
-        assert "Check data type (number vs. string)" in suggestions
-        assert "Review parameter documentation" in suggestions
+        suggestions_text = ' '.join(suggestions)
+        assert "Check data type (number vs. string)" in suggestions_text
+        assert "Review parameter documentation" in suggestions_text

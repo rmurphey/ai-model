@@ -21,10 +21,10 @@ def validate_scenario_config(scenario_data: Dict[str, Any], scenario_name: str) 
         ValidationError: If parameter values are invalid
     """
     required_sections = {
-        'baseline': ['team_size', 'annual_salary', 'total_working_days'],
-        'adoption': ['initial_adopters', 'early_adopters', 'early_majority', 'late_majority'],
-        'impact': ['productivity_gain', 'quality_improvement', 'time_to_market_improvement'],
-        'costs': ['license_cost_monthly', 'setup_cost_one_time'],
+        'baseline': ['team_size'],  # Most baseline fields are optional or profile-based
+        'adoption': ['initial_adopters', 'early_adopters'],  # Key adoption parameters
+        'impact': ['feature_cycle_reduction'],  # At least one impact factor
+        'costs': ['cost_per_seat_month'],  # Basic cost parameter
         'timeframe_months': None  # Simple field, not a section
     }
     
@@ -49,6 +49,11 @@ def validate_scenario_config(scenario_data: Dict[str, Any], scenario_name: str) 
         section_data = scenario_data.get(section_name, {})
         if isinstance(section_data, str):  # Profile reference like "startup"
             continue  # Profile validation happens elsewhere
+            
+        # Check if it's a scenario reference (has 'profile' or 'scenario' key)
+        if isinstance(section_data, dict):
+            if 'profile' in section_data or 'scenario' in section_data:
+                continue  # Using a pre-defined profile/scenario
             
         missing_fields = [field for field in required_fields if field not in section_data]
         if missing_fields:
@@ -179,9 +184,11 @@ def validate_financial_parameters(financial_data: Dict[str, float], section_name
         ValidationError: If financial values are invalid
     """
     financial_fields = {
-        'annual_salary': {'min': 1000, 'max': 1000000, 'typical_range': '40000-200000'},
-        'license_cost_monthly': {'min': 0, 'max': 10000, 'typical_range': '10-500'},
-        'setup_cost_one_time': {'min': 0, 'max': 1000000, 'typical_range': '0-50000'}
+        'junior_flc': {'min': 1000, 'max': 1000000, 'typical_range': '40000-150000'},
+        'mid_flc': {'min': 1000, 'max': 1000000, 'typical_range': '60000-200000'},
+        'senior_flc': {'min': 1000, 'max': 1000000, 'typical_range': '80000-300000'},
+        'cost_per_seat_month': {'min': 0, 'max': 10000, 'typical_range': '10-500'},
+        'infrastructure_setup': {'min': 0, 'max': 1000000, 'typical_range': '0-50000'}
     }
     
     for field_name, constraints in financial_fields.items():

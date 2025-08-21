@@ -7,7 +7,7 @@ Run scenarios and generate reports for AI tool adoption impact.
 import yaml
 import numpy as np
 import pandas as pd
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 import argparse
 from tabulate import tabulate
 import sys
@@ -31,33 +31,68 @@ class AIImpactModel:
     
     def __init__(self, scenario_file: str = "src/scenarios/scenarios.yaml"):
         """Initialize with scenario configurations"""
+        # Try to use new modular loader if available
         try:
-            with open(scenario_file, 'r') as f:
-                self.scenarios = yaml.safe_load(f)
-        except FileNotFoundError:
-            raise ConfigurationError(
-                f"Scenario configuration file not found: {scenario_file}",
-                config_file=scenario_file,
-                resolution_steps=[
-                    "Check if the file path is correct",
-                    "Ensure you're running from the project root directory",
-                    "Verify the file exists: ls -la src/scenarios/scenarios.yaml",
-                    "If missing, restore from version control or documentation"
-                ]
-            )
-        except yaml.YAMLError as e:
-            line_info = ""
-            if hasattr(e, 'problem_mark') and e.problem_mark:
-                line_info = f" (line {e.problem_mark.line + 1}, column {e.problem_mark.column + 1})"
-            
-            raise ConfigurationError(
-                f"Invalid YAML format in scenario file{line_info}: {e}",
-                config_file=scenario_file,
-                resolution_steps=[
-                    "Check YAML syntax using an online YAML validator",
-                    f"Focus on line {e.problem_mark.line + 1} if specified" if hasattr(e, 'problem_mark') else "Review file structure",
-                    "Ensure proper indentation (use spaces, not tabs)",
-                    "Verify all string values are properly quoted",
+            from src.scenarios.scenario_loader import ScenarioLoader
+            # Determine if path is to directory or file
+            if scenario_file.endswith('.yaml'):
+                # Legacy mode - single file
+                loader = ScenarioLoader(scenario_file)
+            else:
+                # Modular mode - directory structure
+                loader = ScenarioLoader(scenario_file.replace('/scenarios.yaml', ''))
+            self.scenarios = loader.load_all_scenarios()
+            self.loader = loader
+        except (ImportError, PermissionError) as e:
+            if isinstance(e, PermissionError):
+                raise ConfigurationError(
+                    f"Permission denied accessing scenario file: {scenario_file}",
+                    config_file=scenario_file,
+                    resolution_steps=[
+                        f"Check file permissions: ls -la {scenario_file}",
+                        f"Fix permissions: chmod 644 {scenario_file}",
+                        "Ensure you have read access to the file"
+                    ]
+                )
+            # Fall back to legacy loading
+            try:
+                with open(scenario_file, 'r') as f:
+                    self.scenarios = yaml.safe_load(f)
+                self.loader = None
+            except PermissionError:
+                raise ConfigurationError(
+                    f"Permission denied accessing scenario file: {scenario_file}",
+                    config_file=scenario_file,
+                    resolution_steps=[
+                        f"Check file permissions: ls -la {scenario_file}",
+                        f"Fix permissions: chmod 644 {scenario_file}",
+                        "Ensure you have read access to the file"
+                    ]
+                )
+            except FileNotFoundError:
+                raise ConfigurationError(
+                    f"Scenario configuration file not found: {scenario_file}",
+                    config_file=scenario_file,
+                    resolution_steps=[
+                        "Check if the file path is correct",
+                        "Ensure you're running from the project root directory",
+                        "Verify the file exists: ls -la src/scenarios/scenarios.yaml",
+                        "If missing, restore from version control or documentation"
+                    ]
+                )
+            except yaml.YAMLError as e:
+                line_info = ""
+                if hasattr(e, 'problem_mark') and e.problem_mark:
+                    line_info = f" (line {e.problem_mark.line + 1}, column {e.problem_mark.column + 1})"
+                
+                raise ConfigurationError(
+                    f"Invalid YAML format in scenario file{line_info}: {e}",
+                    config_file=scenario_file,
+                    resolution_steps=[
+                        "Check YAML syntax using an online YAML validator",
+                        f"Focus on line {e.problem_mark.line + 1} if specified" if hasattr(e, 'problem_mark') else "Review file structure",
+                        "Ensure proper indentation (use spaces, not tabs)",
+                        "Verify all string values are properly quoted",
                     "Compare with working examples in the repository"
                 ]
             )
@@ -97,6 +132,12 @@ class AIImpactModel:
             )
         
         self.results = {}
+    
+    def get_available_scenarios(self) -> List[str]:
+        """Get list of available scenario names"""
+        if hasattr(self, 'loader') and self.loader:
+            return self.loader.list_available_scenarios()
+        return list(self.scenarios.keys())
     
     def load_scenario(self, scenario_name: str) -> Dict:
         """Load a specific scenario configuration"""
