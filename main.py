@@ -264,7 +264,8 @@ class AIImpactModel:
         # Key metrics with colors
         print(f"{metric('Team Size'):<30} {info(str(results['baseline'].team_size) + ' developers')}")
         print(f"{metric('Timeframe'):<30} {info(str(results['config']['timeframe_months']) + ' months')}")
-        print(f"{metric('Peak Adoption'):<30} {percentage(f'{results["peak_adoption"]*100:.1f}%')}")
+        peak_adoption_str = f'{results["peak_adoption"]*100:.1f}%'
+        print(f"{metric('Peak Adoption'):<30} {percentage(peak_adoption_str)}")
         print()
         
         # Financial metrics
