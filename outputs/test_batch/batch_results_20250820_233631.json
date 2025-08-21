@@ -1,0 +1,41 @@
+[
+  {
+    "scenario": "aggressive_scaleup",
+    "success": true,
+    "execution_time": 0.006150245666503906,
+    "cache_hit": false,
+    "error": null,
+    "metrics": {
+      "npv": 8284343.288481279,
+      "roi_percent": 441.35157733606235,
+      "breakeven_month": 1,
+      "peak_adoption": 0.9487036502580233
+    }
+  },
+  {
+    "scenario": "moderate_enterprise",
+    "success": true,
+    "execution_time": 0.017418861389160156,
+    "cache_hit": false,
+    "error": null,
+    "metrics": {
+      "npv": 28396172.688876603,
+      "roi_percent": 410.32922438559365,
+      "breakeven_month": 1,
+      "peak_adoption": 0.8447857870220122
+    }
+  },
+  {
+    "scenario": "conservative_startup",
+    "success": true,
+    "execution_time": 0.012160062789916992,
+    "cache_hit": false,
+    "error": null,
+    "metrics": {
+      "npv": 489080.1649452183,
+      "roi_percent": 307.99164905075054,
+      "breakeven_month": 2,
+      "peak_adoption": 0.7785280629227517
+    }
+  }
+]

@@ -227,9 +227,9 @@ class NextTaskAnalyzer:
     
     def check_todo_comments(self) -> None:
         """Check for TODO/FIXME comments in code."""
-        # Search for TODO comments in src directory
+        # Search for TODO comments in src directory (with # prefix to avoid false positives)
         returncode, stdout, _ = self.run_command([
-            'grep', '-r', '-n', '-E', 'TODO|FIXME|XXX|HACK', 
+            'grep', '-r', '-n', '-E', '# *(TODO|FIXME|XXX|HACK)', 
             '--include=*.py', 'src/'
         ])
         
@@ -404,7 +404,7 @@ class NextTaskAnalyzer:
         if prs:
             stats.append(f"🔄 {prs} open PR(s)")
         
-        # TODOs
+        # Check for TODO items
         todos = sum(1 for t in tasks if "TODO" in t.title)
         if todos:
             stats.append(f"📌 TODO comments found")
