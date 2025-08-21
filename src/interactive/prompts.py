@@ -50,6 +50,7 @@ def get_text_input(prompt: str, default: Optional[str] = None) -> str:
         User input or default value
     """
     try:
+        # Try questionary first
         result = questionary.text(
             prompt,
             default=str(default) if default is not None else "",
@@ -60,6 +61,17 @@ def get_text_input(prompt: str, default: Optional[str] = None) -> str:
             raise KeyboardInterrupt
         
         return result.strip() if result else (str(default) if default is not None else "")
+    except (OSError, ValueError) as e:
+        # Fallback to basic input if terminal not available
+        if default:
+            prompt_text = f"{prompt} [{default}]: "
+        else:
+            prompt_text = f"{prompt}: "
+        
+        response = input(prompt_text).strip()
+        if not response and default is not None:
+            return str(default)
+        return response
     except KeyboardInterrupt:
         print("\n")
         raise
@@ -196,7 +208,22 @@ def select_from_menu(
             
             # Fallback to first option if somehow not found
             return options[0][0]
-                    
+    except (OSError, ValueError):
+        # Fallback to numbered menu if terminal not available
+        print(f"\n{prompt}")
+        for i, (value, desc) in enumerate(options, 1):
+            print(f"  {i}. {desc}")
+        
+        while True:
+            try:
+                response = input("\nSelect [1]: ").strip() or "1"
+                index = int(response) - 1
+                if 0 <= index < len(options):
+                    return options[index][0]
+                else:
+                    print(f"Please select a number between 1 and {len(options)}")
+            except ValueError:
+                print("Please enter a valid number")
     except KeyboardInterrupt:
         print("\n")
         raise
@@ -224,6 +251,20 @@ def confirm_action(prompt: str, default: bool = False) -> bool:
             raise KeyboardInterrupt
         
         return result
+    except (OSError, ValueError):
+        # Fallback to basic input if terminal not available
+        default_hint = "Y/n" if default else "y/N"
+        
+        while True:
+            response = input(f"{prompt} [{default_hint}]: ").strip().lower()
+            if not response:
+                return default
+            if response in ['y', 'yes']:
+                return True
+            elif response in ['n', 'no']:
+                return False
+            else:
+                print("Please enter 'y' for yes or 'n' for no.")
     except KeyboardInterrupt:
         print("\n")
         raise
