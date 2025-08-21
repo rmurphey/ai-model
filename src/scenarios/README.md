@@ -208,6 +208,315 @@ parameter:
     std_log: 0.3
 ```
 
+## Complete Parameter Reference
+
+This section documents all parameters available in scenario YAML files, their meanings, acceptable values, and business impact.
+
+### Baseline Parameters
+
+The baseline section defines the current state of your development organization before AI adoption.
+
+#### Team Composition
+```yaml
+baseline:
+  team_size: 50                    # Number of developers (integer, > 0)
+  
+  # Team seniority distribution (must sum to 1.0)
+  junior_ratio: 0.3                # Percentage of junior developers (0-1)
+  mid_ratio: 0.5                   # Percentage of mid-level developers (0-1)  
+  senior_ratio: 0.2                # Percentage of senior developers (0-1)
+  
+  # Annual fully-loaded costs per developer level (USD)
+  junior_flc: 130000               # Junior developer total cost
+  mid_flc: 180000                  # Mid-level developer total cost
+  senior_flc: 250000               # Senior developer total cost
+```
+
+#### Development Metrics
+```yaml
+baseline:
+  # Time-to-delivery metrics
+  avg_feature_cycle_days: 21       # Days from requirement to production (> 0)
+  avg_bug_fix_hours: 6              # Hours from bug report to fix (> 0)
+  onboarding_days: 30               # Days for new dev to be productive (> 0)
+  avg_pr_review_hours: 4            # Hours spent per PR review (> 0)
+```
+
+#### Quality Metrics
+```yaml
+baseline:
+  # Quality and incident metrics
+  defect_escape_rate: 5.0           # Defects per 1000 lines of code (>= 0)
+  production_incidents_per_month: 8  # Monthly production incidents (>= 0)
+  avg_incident_cost: 10000          # Average cost per incident in USD (>= 0)
+  rework_percentage: 0.15           # Percentage of work requiring rework (0-1)
+  pr_rejection_rate: 0.2            # Percentage of PRs needing changes (0-1)
+```
+
+#### Capacity Allocation
+```yaml
+baseline:
+  # How developers spend their time (should approximately sum to 1.0)
+  effective_capacity_hours: 1600    # Annual productive hours per developer
+  new_feature_percentage: 0.4       # Time on new features (0-1)
+  maintenance_percentage: 0.4       # Time on maintenance (0-1)
+  tech_debt_percentage: 0.15        # Time on technical debt (0-1)
+  meetings_percentage: 0.05         # Time in meetings/admin (0-1)
+  other_percentage: 0.0             # Other activities (0-1)
+  
+  # Delivery metrics
+  feature_delivery_rate: 14         # Features per developer per year (> 0)
+```
+
+### Adoption Parameters
+
+The adoption section models how developers adopt and learn AI tools over time.
+
+#### Adoption Segments
+Based on Rogers' Diffusion of Innovations, these should sum to 1.0:
+```yaml
+adoption:
+  # Technology adoption curve segments
+  initial_adopters: 0.05            # Innovators - adopt immediately (0-1)
+  early_adopters: 0.15              # Early adopters - first 3 months (0-1)
+  early_majority: 0.35              # Early majority - months 4-9 (0-1)
+  late_majority: 0.30               # Late majority - months 10-18 (0-1)
+  laggards: 0.15                    # Laggards - very late/never (0-1)
+```
+
+#### Adoption Dynamics
+```yaml
+adoption:
+  # Factors influencing adoption speed
+  training_effectiveness: 0.5       # How well training drives adoption (0-1)
+  peer_influence: 0.7               # Network effect strength (0-1)
+  management_mandate: 0.3           # Top-down push effectiveness (0-1)
+  
+  # Resistance and churn
+  initial_resistance: 0.4           # Initial resistance percentage (0-1)
+  dropout_rate_month: 0.02          # Monthly dropout/churn rate (0-1)
+  re_engagement_rate: 0.03          # Rate dropouts return (0-1)
+```
+
+#### Learning Curve
+```yaml
+adoption:
+  # How quickly developers become proficient
+  initial_efficiency: 0.3           # Day 1 efficiency with AI (0-1)
+  learning_rate: 0.3                # Speed of improvement (0-1, higher = faster)
+  plateau_efficiency: 0.85          # Maximum efficiency achieved (0-1)
+  
+  # Segment-specific adoption rates
+  junior_adoption_multiplier: 1.3   # Juniors adopt faster (> 0)
+  mid_adoption_multiplier: 1.0      # Mid-level baseline (> 0)
+  senior_adoption_multiplier: 0.7   # Seniors adopt slower (> 0)
+```
+
+### Impact Parameters
+
+The impact section defines how AI tools improve various aspects of development.
+
+#### Time Improvements
+All values are reduction ratios (0 = no improvement, 1 = 100% faster):
+```yaml
+impact:
+  # Development speed improvements
+  feature_cycle_reduction: 0.25     # 25% faster feature delivery (0-1)
+  bug_fix_reduction: 0.35           # 35% faster bug fixes (0-1)
+  onboarding_reduction: 0.40         # 40% faster onboarding (0-1)
+  pr_review_reduction: 0.50          # 50% faster PR reviews (0-1)
+```
+
+#### Quality Improvements
+All values are reduction ratios for negative metrics:
+```yaml
+impact:
+  # Quality enhancements
+  defect_reduction: 0.30            # 30% fewer defects (0-1)
+  incident_reduction: 0.25          # 25% fewer incidents (0-1)
+  rework_reduction: 0.40            # 40% less rework (0-1)
+```
+
+#### Capacity Reallocation
+Percentage point changes in how time is allocated:
+```yaml
+impact:
+  # Capacity gains (percentage points)
+  feature_capacity_gain: 0.10       # 10pp more time for features
+  tech_debt_capacity_gain: 0.05     # 5pp more time for tech debt
+```
+
+#### Task Effectiveness
+How well AI handles specific development tasks:
+```yaml
+impact:
+  # AI effectiveness by task type (0 = useless, 1 = perfect)
+  boilerplate_effectiveness: 0.85   # Repetitive code generation (0-1)
+  test_generation_effectiveness: 0.70  # Unit test creation (0-1)
+  documentation_effectiveness: 0.80  # Documentation writing (0-1)
+  code_review_effectiveness: 0.60   # Code review assistance (0-1)
+  debugging_effectiveness: 0.50     # Bug finding and fixing (0-1)
+  
+  # Developer-level impact multipliers
+  junior_multiplier: 1.5            # Juniors benefit more (> 0)
+  mid_multiplier: 1.3               # Mid-level moderate benefit (> 0)
+  senior_multiplier: 1.2            # Seniors benefit less (> 0)
+```
+
+### Cost Parameters
+
+The costs section captures all expenses related to AI tool adoption.
+
+#### Licensing Costs
+```yaml
+costs:
+  # Software licensing
+  cost_per_seat_month: 50           # Monthly cost per developer (USD, >= 0)
+  enterprise_discount: 0.3          # Enterprise discount rate (0-1)
+```
+
+#### Token/API Usage
+```yaml
+costs:
+  # API and token consumption
+  initial_tokens_per_dev_month: 500000  # Starting monthly token usage
+  token_price_per_million: 8        # Cost per million tokens (USD)
+  token_price_decline_annual: 0.25  # Annual price decline rate (0-1)
+  token_growth_rate_monthly: 0.10   # Monthly usage growth (0-1)
+  token_plateau_month: 12           # Month when usage stabilizes (> 0)
+```
+
+#### Training Costs
+```yaml
+costs:
+  # Training and education
+  initial_training_cost_per_dev: 2000   # Initial training cost (USD)
+  ongoing_training_cost_annual: 500     # Annual training cost (USD)
+  trainer_cost_per_day: 2000           # Daily trainer rate (USD)
+  training_days_initial: 5              # Initial training days
+  training_days_ongoing_annual: 2       # Annual training days
+```
+
+#### Infrastructure
+```yaml
+costs:
+  # Infrastructure and support
+  infrastructure_setup: 50000          # One-time setup cost (USD)
+  infrastructure_monthly: 5000         # Monthly infrastructure (USD)
+  admin_overhead_percentage: 0.05     # Admin overhead as % of FTE (0-1)
+```
+
+#### Hidden Costs
+```yaml
+costs:
+  # Often overlooked costs
+  context_switch_cost_month: 1000     # Monthly context switching (USD)
+  bad_code_cleanup_percentage: 0.08   # Time cleaning AI mistakes (0-1)
+  security_review_overhead: 4          # Extra security review hours
+  
+  # Experimentation budget
+  pilot_budget: 100000                # Initial pilot investment (USD)
+  ongoing_experimentation: 50000      # Annual R&D budget (USD)
+```
+
+### Global Parameters
+
+Top-level parameters that control the overall scenario:
+
+```yaml
+# Scenario metadata
+name: "Moderate Enterprise"          # Display name (string)
+description: "50-person enterprise team with balanced AI adoption"
+timeframe_months: 36                 # Analysis period (typically 24-36)
+
+# Inheritance (for modular scenarios)
+extends:                             # List of configurations to inherit
+  - profiles/enterprise              # Base company profile
+  - strategies/moderate              # Adoption strategy
+  - distributions/medium_uncertainty  # For Monte Carlo
+
+# Scenario references (for legacy format)
+baseline:
+  profile: enterprise                # Use predefined profile
+adoption:
+  scenario: grassroots              # Use predefined scenario
+impact:
+  scenario: moderate                # Use predefined scenario
+costs:
+  scenario: enterprise              # Use predefined scenario
+```
+
+## Parameter Validation Rules
+
+### Required Constraints
+1. **Ratios must sum to 1.0**:
+   - `junior_ratio + mid_ratio + senior_ratio = 1.0`
+   - `initial_adopters + early_adopters + early_majority + late_majority + laggards = 1.0`
+   - Capacity percentages should approximately sum to 1.0
+
+2. **Bounded Parameters (0-1)**:
+   - All percentages and ratios
+   - All reduction factors
+   - All effectiveness measures
+   - Learning curve parameters
+
+3. **Positive Values Required**:
+   - All costs (USD amounts)
+   - Team size
+   - Time metrics (days, hours)
+   - Delivery rates
+
+4. **Logical Constraints**:
+   - `initial_efficiency < plateau_efficiency`
+   - `token_plateau_month <= timeframe_months`
+   - Multipliers typically > 0
+
+### Common Parameter Patterns
+
+#### Conservative Scenarios
+- Lower reduction factors (0.1-0.3)
+- Higher resistance (0.5-0.7)
+- Lower effectiveness (0.3-0.6)
+- Higher hidden costs
+- Slower adoption curves
+
+#### Moderate Scenarios
+- Balanced reduction factors (0.2-0.4)
+- Moderate resistance (0.3-0.5)
+- Medium effectiveness (0.5-0.7)
+- Realistic cost estimates
+- Standard adoption curves
+
+#### Aggressive Scenarios
+- Higher reduction factors (0.3-0.6)
+- Lower resistance (0.1-0.3)
+- Higher effectiveness (0.7-0.9)
+- Optimistic cost projections
+- Faster adoption curves
+
+#### Company Size Patterns
+
+**Startups (10 people)**:
+- Lower FLC costs
+- Faster adoption
+- Higher risk tolerance
+- Less infrastructure cost
+- More feature focus
+
+**Scale-ups (25 people)**:
+- Moderate costs
+- Balanced adoption
+- Mixed experience levels
+- Growing infrastructure
+- Balance feature/maintenance
+
+**Enterprises (50+ people)**:
+- Higher FLC costs
+- Slower adoption
+- More process overhead
+- Significant infrastructure
+- Higher maintenance burden
+
 ## Running Scenarios
 
 ### Using Legacy Files
