@@ -132,9 +132,60 @@ class InteractiveWizard:
             [
                 ("Conservative", "10-20% improvements"),
                 ("Moderate", "20-35% improvements"),
-                ("Aggressive", "35-50% improvements")
+                ("Aggressive", "35-50% improvements"),
+                ("Custom", "Enter custom improvement percentage")
             ]
         )
+        
+        # Handle custom impact level
+        custom_impact_value = None
+        custom_impact_details = None
+        if impact_level == "Custom":
+            display_info("\nCustom Impact Configuration")
+            detail_choice = select_from_menu(
+                "How would you like to specify improvements?",
+                [
+                    ("Overall", "Single overall improvement percentage"),
+                    ("Detailed", "Specify individual areas (time, quality, etc.)")
+                ]
+            )
+            
+            if detail_choice == "Overall":
+                custom_impact_value = get_numeric_input(
+                    "Enter expected overall improvement percentage",
+                    default=30,
+                    min_val=5,
+                    max_val=70
+                ) / 100  # Convert percentage to decimal
+            else:
+                # Get specific improvements for different areas
+                display_info("\nSpecify improvements for each area:")
+                custom_impact_details = {
+                    "feature_cycle_reduction": get_numeric_input(
+                        "Feature delivery speed improvement (%)",
+                        default=30,
+                        min_val=0,
+                        max_val=70
+                    ) / 100,
+                    "bug_fix_reduction": get_numeric_input(
+                        "Bug fix speed improvement (%)",
+                        default=40,
+                        min_val=0,
+                        max_val=80
+                    ) / 100,
+                    "defect_reduction": get_numeric_input(
+                        "Defect rate reduction (%)",
+                        default=25,
+                        min_val=0,
+                        max_val=60
+                    ) / 100,
+                    "incident_reduction": get_numeric_input(
+                        "Production incident reduction (%)",
+                        default=30,
+                        min_val=0,
+                        max_val=70
+                    ) / 100
+                }
         
         display_info("\n[Question 5/5] Timeframe")
         timeframe = get_numeric_input(
@@ -154,7 +205,9 @@ class InteractiveWizard:
             senior_ratio=senior_ratio,
             adoption_strategy=strategy.lower(),
             impact_level=impact_level.lower(),
-            timeframe_months=timeframe
+            timeframe_months=timeframe,
+            custom_impact_value=custom_impact_value,
+            custom_impact_details=custom_impact_details
         )
         
         # Store and run scenario

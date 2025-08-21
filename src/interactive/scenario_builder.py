@@ -269,32 +269,72 @@ class ScenarioBuilder:
         senior_ratio: float,
         adoption_strategy: str,
         impact_level: str,
-        timeframe_months: int
+        timeframe_months: int,
+        custom_impact_value: Optional[float] = None,
+        custom_impact_details: Optional[Dict[str, float]] = None
     ) -> Dict[str, Any]:
         """Build a scenario from quick setup inputs."""
         
-        # Map impact level to multipliers
-        impact_multipliers = {
-            "conservative": 0.6,
-            "moderate": 1.0,
-            "aggressive": 1.4
-        }
-        multiplier = impact_multipliers.get(impact_level, 1.0)
-        
-        # Base impact values (moderate)
-        base_impacts = {
-            "feature_cycle_reduction": 0.30,
-            "bug_fix_reduction": 0.40,
-            "defect_reduction": 0.25,
-            "incident_reduction": 0.30,
-            "onboarding_time_reduction": 0.35,
-            "context_switch_reduction": 0.20,
-            "code_review_time_reduction": 0.25,
-            "documentation_improvement": 0.45
-        }
-        
-        # Apply multiplier
-        impacts = {k: min(v * multiplier, 0.7) for k, v in base_impacts.items()}
+        # Handle custom impact details first
+        if custom_impact_details is not None:
+            # Use the specific values provided by the user
+            impacts = {
+                "feature_cycle_reduction": custom_impact_details.get("feature_cycle_reduction", 0.30),
+                "bug_fix_reduction": custom_impact_details.get("bug_fix_reduction", 0.40),
+                "defect_reduction": custom_impact_details.get("defect_reduction", 0.25),
+                "incident_reduction": custom_impact_details.get("incident_reduction", 0.30),
+                # Add related improvements with reasonable defaults based on primary metrics
+                "onboarding_time_reduction": custom_impact_details.get("feature_cycle_reduction", 0.30) * 1.2,
+                "context_switch_reduction": custom_impact_details.get("feature_cycle_reduction", 0.30) * 0.67,
+                "code_review_time_reduction": custom_impact_details.get("bug_fix_reduction", 0.40) * 0.625,
+                "documentation_improvement": custom_impact_details.get("defect_reduction", 0.25) * 1.8
+            }
+            # Cap all values at 0.7 (70% improvement max)
+            impacts = {k: min(v, 0.7) for k, v in impacts.items()}
+        elif custom_impact_value is not None:
+            # Use custom value to calculate multiplier
+            # custom_impact_value is already a decimal (e.g., 0.25 for 25%)
+            # Map it to a multiplier (0.25 → ~0.8, 0.50 → ~1.6)
+            multiplier = custom_impact_value * 3.2  # Scale to reasonable range
+            
+            # Base impact values (moderate)
+            base_impacts = {
+                "feature_cycle_reduction": 0.30,
+                "bug_fix_reduction": 0.40,
+                "defect_reduction": 0.25,
+                "incident_reduction": 0.30,
+                "onboarding_time_reduction": 0.35,
+                "context_switch_reduction": 0.20,
+                "code_review_time_reduction": 0.25,
+                "documentation_improvement": 0.45
+            }
+            
+            # Apply multiplier
+            impacts = {k: min(v * multiplier, 0.7) for k, v in base_impacts.items()}
+        else:
+            # Use predefined impact levels
+            impact_multipliers = {
+                "conservative": 0.6,
+                "moderate": 1.0,
+                "aggressive": 1.4,
+                "custom": 1.0  # Fallback if somehow custom wasn't handled
+            }
+            multiplier = impact_multipliers.get(impact_level, 1.0)
+            
+            # Base impact values (moderate)
+            base_impacts = {
+                "feature_cycle_reduction": 0.30,
+                "bug_fix_reduction": 0.40,
+                "defect_reduction": 0.25,
+                "incident_reduction": 0.30,
+                "onboarding_time_reduction": 0.35,
+                "context_switch_reduction": 0.20,
+                "code_review_time_reduction": 0.25,
+                "documentation_improvement": 0.45
+            }
+            
+            # Apply multiplier
+            impacts = {k: min(v * multiplier, 0.7) for k, v in base_impacts.items()}
         
         # Map adoption strategy to parameters
         adoption_params = {
