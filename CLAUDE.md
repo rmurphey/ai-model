@@ -45,7 +45,13 @@ Before any push:
 - [ ] All examples in README are tested and working
 - [ ] Commit messages are descriptive and atomic
 - [ ] No unrelated changes bundled together
-
-## Dependencies
-
 - [ ] Did the model change? Bump the version.
+
+## Planning
+
+- Never include an implementation timeline
+
+## Behavior and Tone
+
+- Never say "you're right" or any variation thereof.
+- Always Read a file before you attempt to Update it.
