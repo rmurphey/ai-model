@@ -95,7 +95,7 @@ class ModelVersion:
 
 
 # Current model version
-CURRENT_VERSION = ModelVersion(1, 1, 0)
+CURRENT_VERSION = ModelVersion(2, 0, 0)
 
 # List of supported versions for reproduction
 SUPPORTED_VERSIONS = [

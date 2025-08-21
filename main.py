@@ -30,18 +30,18 @@ from src.model.distributions import ParameterDistributions
 class AIImpactModel:
     """Main orchestration class for the AI impact model"""
     
-    def __init__(self, scenario_file: str = "src/scenarios/scenarios.yaml"):
+    def __init__(self, scenario_file: str = "src/scenarios"):
         """Initialize with scenario configurations"""
-        # Try to use new modular loader if available
+        # Use modular loader
         try:
             from src.scenarios.scenario_loader import ScenarioLoader
-            # Determine if path is to directory or file
+            # Use modular directory structure
             if scenario_file.endswith('.yaml'):
-                # Legacy mode - single file
-                loader = ScenarioLoader(scenario_file)
+                # Remove the .yaml part to get directory
+                scenario_dir = os.path.dirname(scenario_file) or "src/scenarios"
             else:
-                # Modular mode - directory structure
-                loader = ScenarioLoader(scenario_file.replace('/scenarios.yaml', ''))
+                scenario_dir = scenario_file
+            loader = ScenarioLoader(scenario_dir)
             self.scenarios = loader.load_all_scenarios()
             self.loader = loader
         except (ImportError, PermissionError) as e:
@@ -55,56 +55,14 @@ class AIImpactModel:
                         "Ensure you have read access to the file"
                     ]
                 )
-            # Fall back to legacy loading
-            try:
-                with open(scenario_file, 'r') as f:
-                    self.scenarios = yaml.safe_load(f)
-                self.loader = None
-            except PermissionError:
-                raise ConfigurationError(
-                    f"Permission denied accessing scenario file: {scenario_file}",
-                    config_file=scenario_file,
-                    resolution_steps=[
-                        f"Check file permissions: ls -la {scenario_file}",
-                        f"Fix permissions: chmod 644 {scenario_file}",
-                        "Ensure you have read access to the file"
-                    ]
-                )
-            except FileNotFoundError:
-                raise ConfigurationError(
-                    f"Scenario configuration file not found: {scenario_file}",
-                    config_file=scenario_file,
-                    resolution_steps=[
-                        "Check if the file path is correct",
-                        "Ensure you're running from the project root directory",
-                        "Verify the file exists: ls -la src/scenarios/scenarios.yaml",
-                        "If missing, restore from version control or documentation"
-                    ]
-                )
-            except yaml.YAMLError as e:
-                line_info = ""
-                if hasattr(e, 'problem_mark') and e.problem_mark:
-                    line_info = f" (line {e.problem_mark.line + 1}, column {e.problem_mark.column + 1})"
-                
-                raise ConfigurationError(
-                    f"Invalid YAML format in scenario file{line_info}: {e}",
-                    config_file=scenario_file,
-                    resolution_steps=[
-                        "Check YAML syntax using an online YAML validator",
-                        f"Focus on line {e.problem_mark.line + 1} if specified" if hasattr(e, 'problem_mark') else "Review file structure",
-                        "Ensure proper indentation (use spaces, not tabs)",
-                        "Verify all string values are properly quoted",
-                    "Compare with working examples in the repository"
-                ]
-            )
-        except PermissionError:
+            # No legacy fallback - always use modular structure
             raise ConfigurationError(
-                f"Permission denied accessing scenario file: {scenario_file}",
+                f"Failed to load scenarios: {e}",
                 config_file=scenario_file,
                 resolution_steps=[
-                    f"Check file permissions: ls -la {scenario_file}",
-                    "Ensure you have read access to the file",
-                    "Verify the file is not locked by another process"
+                    "Ensure the scenarios directory exists",
+                    "Check that you're running from the project root",
+                    "Verify the scenario directory structure is correct"
                 ]
             )
         except Exception as e:
@@ -618,8 +576,21 @@ def main():
                        help='Path to scenario configuration file')
     parser.add_argument('--no-cache', action='store_true', help='Disable result caching')
     parser.add_argument('--cache-stats', action='store_true', help='Show cache statistics')
+    parser.add_argument('--interactive', action='store_true',
+                       help='Launch interactive mode for guided scenario creation')
     
     args = parser.parse_args()
+    
+    # Launch interactive mode if requested
+    if args.interactive:
+        from src.interactive.wizard import InteractiveWizard
+        try:
+            wizard = InteractiveWizard()
+            wizard.run()
+            return
+        except KeyboardInterrupt:
+            print("\nSession terminated by user.")
+            return
     
     # Disable caching if requested
     if args.no_cache:

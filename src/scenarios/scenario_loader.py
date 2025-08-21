@@ -12,14 +12,14 @@ from ..utils.cache import smart_cache, memoized_method
 
 
 class ScenarioLoader:
-    """Loads scenarios from modular directory structure or legacy single file."""
+    """Loads scenarios from modular directory structure."""
     
     def __init__(self, scenarios_path: str = "src/scenarios"):
         """
         Initialize scenario loader.
         
         Args:
-            scenarios_path: Path to scenarios directory or YAML file
+            scenarios_path: Path to scenarios directory
         """
         self.scenarios_path = Path(scenarios_path)
         self._cache = {}
@@ -27,86 +27,34 @@ class ScenarioLoader:
         self._strategies = {}
         self._distributions = {}
         
-        # Check if using legacy single-file or new directory structure
-        if self.scenarios_path.suffix == '.yaml':
-            self.mode = 'legacy'
-        elif self.scenarios_path.is_dir():
-            self.mode = 'modular'
-            self._load_components()
-        else:
+        # Only support modular directory structure
+        if not self.scenarios_path.is_dir():
             raise ConfigurationError(
                 f"Invalid scenarios path: {scenarios_path}",
                 config_file=str(scenarios_path),
                 resolution_steps=[
-                    "Provide either a YAML file path or directory path",
-                    "Check that the path exists",
+                    "Provide a valid directory path",
+                    "Check that the directory exists",
                     "Ensure you're running from the project root"
                 ]
             )
+        
+        self._load_components()
     
     @memoized_method(maxsize=32)
     def load_all_scenarios(self) -> Dict[str, Any]:
         """Load all available scenarios."""
-        if self.mode == 'legacy':
-            return self._load_legacy_file()
-        else:
-            return self._load_modular_scenarios()
+        return self._load_modular_scenarios()
     
     def load_scenario(self, name: str) -> Dict[str, Any]:
         """Load a specific scenario by name."""
         if name in self._cache:
             return self._cache[name]
         
-        if self.mode == 'legacy':
-            scenarios = self._load_legacy_file()
-            if name not in scenarios:
-                raise ConfigurationError(
-                    f"Scenario '{name}' not found",
-                    config_file=str(self.scenarios_path),
-                    resolution_steps=[
-                        f"Available scenarios: {', '.join(scenarios.keys())}",
-                        "Check scenario name spelling",
-                        "Use --list-scenarios to see all available scenarios"
-                    ]
-                )
-            return scenarios[name]
-        else:
-            scenario = self._load_modular_scenario(name)
-            self._cache[name] = scenario
-            return scenario
+        scenario = self._load_modular_scenario(name)
+        self._cache[name] = scenario
+        return scenario
     
-    @smart_cache
-    def _load_legacy_file(self) -> Dict[str, Any]:
-        """Load scenarios from legacy single YAML file."""
-        try:
-            with open(self.scenarios_path, 'r') as f:
-                return yaml.safe_load(f)
-        except FileNotFoundError:
-            raise ConfigurationError(
-                f"Scenario configuration file not found: {self.scenarios_path}",
-                config_file=str(self.scenarios_path),
-                resolution_steps=[
-                    "Check if the file path is correct",
-                    "Ensure you're running from the project root directory",
-                    "Verify the file exists: ls -la src/scenarios/scenarios.yaml",
-                    "If missing, restore from version control or documentation"
-                ]
-            )
-        except yaml.YAMLError as e:
-            line_info = ""
-            if hasattr(e, 'problem_mark') and e.problem_mark:
-                line_info = f" (line {e.problem_mark.line + 1}, column {e.problem_mark.column + 1})"
-            
-            raise ConfigurationError(
-                f"Invalid YAML format in scenario file{line_info}: {e}",
-                config_file=str(self.scenarios_path),
-                resolution_steps=[
-                    "Check YAML syntax using an online YAML validator",
-                    f"Focus on line {e.problem_mark.line + 1} if specified" if hasattr(e, 'problem_mark') else "Review file structure",
-                    "Ensure proper indentation (use spaces, not tabs)",
-                    "Verify all string values are properly quoted"
-                ]
-            )
     
     def _load_components(self):
         """Load reusable components (profiles, strategies, distributions)."""
@@ -152,13 +100,6 @@ class ScenarioLoader:
                 scenario = self._load_scenario_file(file)
                 scenarios[f"{file.stem}_monte_carlo"] = scenario
         
-        # Also check for legacy files if they exist
-        legacy_file = self.scenarios_path / "scenarios.yaml"
-        if legacy_file.exists():
-            with open(legacy_file, 'r') as f:
-                legacy_scenarios = yaml.safe_load(f)
-                scenarios.update(legacy_scenarios)
-        
         return scenarios
     
     def _load_modular_scenario(self, name: str) -> Dict[str, Any]:
@@ -173,13 +114,6 @@ class ScenarioLoader:
         for file_path in possible_files:
             if file_path.exists():
                 return self._load_scenario_file(file_path)
-        
-        # Fall back to legacy file if exists
-        legacy_file = self.scenarios_path / "scenarios.yaml"
-        if legacy_file.exists():
-            scenarios = self._load_legacy_file()
-            if name in scenarios:
-                return scenarios[name]
         
         raise ConfigurationError(
             f"Scenario '{name}' not found",

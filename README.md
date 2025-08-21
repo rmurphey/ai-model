@@ -19,10 +19,20 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
+# NEW: Interactive mode for guided scenario creation
+python main.py --interactive
+# Or use the dedicated script
+python interactive.py
+
 # Using the Claude command (recommended)
 claude analyze moderate_enterprise
 claude analyze --compare
 claude analyze --list
+
+# NEW in v2.0: Generate comprehensive reports
+claude reports startup --format markdown
+claude reports enterprise --monte-carlo --format all
+claude reports ai_assistant --output custom_report.json
 
 # Or using Python directly
 python main.py --scenario moderate_enterprise
@@ -52,10 +62,49 @@ python reproduce_results.py --validate reports/*.md
 python reproduce_results.py --tolerance 0.01 reports/
 ```
 
+## Interactive Mode
+
+The tool now includes an interactive terminal-based interface that guides you through scenario creation and analysis:
+
+### Features
+- **Quick Setup**: Answer 5 essential questions to get started
+- **Detailed Setup**: Configure all parameters with guided prompts
+- **Templates**: Start from pre-configured industry templates
+- **What-If Analysis**: Explore variations of your scenario
+- **Sensitivity Analysis**: Identify which parameters matter most
+- **Parameter Refinement**: Iteratively improve your model
+- **Results Explorer**: Navigate through detailed breakdowns
+- **Scenario Comparison**: Compare multiple scenarios side-by-side
+- **Robust Input Handling**: Uses questionary library for cross-platform terminal compatibility
+
+### Usage
+```bash
+# Launch interactive mode
+python main.py --interactive
+
+# Or use the dedicated script
+python interactive.py
+
+# Note: Interactive mode requires a terminal environment
+# If running through SSH or non-TTY environment, use:
+python -u interactive.py
+```
+
+### Interactive Workflow
+1. **Choose Setup Mode**: Quick (5 questions) or Detailed (15+ questions)
+2. **Define Company Profile**: Team size, composition, current metrics
+3. **Select Adoption Strategy**: Organic, mandated, or hybrid approach
+4. **Set Expectations**: Expected improvements and timeframe
+5. **Run Analysis**: Automatic execution with progress indicators
+6. **Explore Results**: Interactive navigation through metrics
+7. **Refine & Iterate**: Adjust parameters based on sensitivity
+8. **Export**: Save results and configurations for sharing
+
 ## Project Structure
 
 ```
-├── main.py                     # Main entry point
+├── main.py                     # Main entry point with interactive mode
+├── interactive.py              # Dedicated interactive mode launcher
 ├── run_analysis.py             # Analysis script with export functionality
 ├── reproduce_results.py        # Result reproduction and validation tool
 ├── version_manager.py          # Version management CLI tool
@@ -65,6 +114,11 @@ python reproduce_results.py --tolerance 0.01 reports/
 │       ├── analyze             # Claude command executable
 │       └── analyze.md          # Command documentation
 ├── src/
+│   ├── interactive/           # Interactive mode components
+│   │   ├── wizard.py          # Main interactive wizard
+│   │   ├── prompts.py         # Terminal input/output utilities
+│   │   ├── scenario_builder.py # Scenario construction from inputs
+│   │   └── results_explorer.py # Interactive results navigation
 │   ├── model/                 # Core model components
 │   │   ├── baseline.py        # Baseline metrics
 │   │   ├── adoption_dynamics.py # Adoption patterns
@@ -579,7 +633,7 @@ Versions follow semantic versioning (MAJOR.MINOR.PATCH):
 - **MINOR**: New features or improvements with backward compatibility
 - **PATCH**: Bug fixes and minor adjustments
 
-Current version: **v1.0.0**
+Current version: **v2.0.0**
 
 ### Version Compatibility
 
@@ -721,7 +775,20 @@ adapted_config = adapt_scenario_config(
 
 ### Version History and Migration
 
-**Version 1.0.0** (Current)
+**Version 2.0.0** (Current)
+- **BREAKING**: Removed legacy single-file scenario loading support
+- **NEW**: Added `/reports` command for comprehensive report generation
+- **NEW**: Multi-format report export (Markdown, JSON, Text)
+- Modular scenario loading is now the only supported method
+- Enhanced report generation with Monte Carlo results integration
+
+**Version 1.1.0**
+- Added Monte Carlo simulation capabilities
+- Probabilistic parameter definitions in scenarios
+- NPV/ROI confidence intervals and risk assessment
+- Sensitivity analysis for parameter importance
+
+**Version 1.0.0**
 - Initial stable release
 - Baseline model with comprehensive business impact calculations
 - Full reproduction system implementation
