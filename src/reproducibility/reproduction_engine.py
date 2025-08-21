@@ -16,6 +16,8 @@ import numpy as np
 
 from main import AIImpactModel
 from src.utils.exceptions import ConfigurationError, ScenarioError, ValidationError
+from src.config.version import ModelVersion, get_current_version, get_compatibility_info
+from src.versioning.version_adapter import adapt_scenario_config
 
 
 @dataclass
@@ -29,6 +31,8 @@ class ReproductionMetadata:
     resolved_parameters: Dict[str, Any]
     original_results: Dict[str, Any]
     report_checksum: str
+    model_version: Optional[ModelVersion] = None
+    tool_version: Optional[str] = None
 
 
 @dataclass  
@@ -41,6 +45,7 @@ class ReproductionResult:
     differences: Dict[str, Any]
     validation_details: Dict[str, str]
     reproduction_metadata: ReproductionMetadata
+    version_compatibility: Optional[Dict[str, Any]] = None
 
 
 class MetadataExtractor:
@@ -72,6 +77,9 @@ class MetadataExtractor:
         # Extract original results for validation
         original_results = self._extract_original_results(content)
         
+        # Extract version information
+        model_version, tool_version = self._extract_version_info(content)
+        
         return ReproductionMetadata(
             command_used=command_used,
             analysis_type=analysis_type,
@@ -80,7 +88,9 @@ class MetadataExtractor:
             scenario_configs=scenario_configs,
             resolved_parameters=resolved_parameters,
             original_results=original_results,
-            report_checksum=report_checksum
+            report_checksum=report_checksum,
+            model_version=model_version,
+            tool_version=tool_version
         )
     
     def _extract_analysis_type(self, content: str) -> str:
@@ -199,6 +209,32 @@ class MetadataExtractor:
             results['total_value_3y'] = float(total_value_match.group(1).replace(',', ''))
         
         return results
+    
+    def _extract_version_info(self, content: str) -> Tuple[Optional[ModelVersion], Optional[str]]:
+        """Extract model version and tool version from the report"""
+        model_version = None
+        tool_version = None
+        
+        # Extract Analysis Tool Version from header
+        tool_match = re.search(r'\*\*Analysis Tool Version:\*\* v?([^\s]+)', content)
+        if tool_match:
+            tool_version = tool_match.group(1)
+            try:
+                model_version = ModelVersion.from_string(tool_version)
+            except ValueError:
+                # If tool version doesn't parse as semantic version, try analysis engine version
+                pass
+        
+        # Fallback: Extract from Analysis engine line in footer
+        if model_version is None:
+            engine_match = re.search(r'Analysis engine: AI Impact Model v?([\d.]+)', content)
+            if engine_match:
+                try:
+                    model_version = ModelVersion.from_string(engine_match.group(1))
+                except ValueError:
+                    pass
+        
+        return model_version, tool_version
 
 
 class ScenarioBuilder:
@@ -260,11 +296,45 @@ class ReproductionEngine:
                     context="Report must contain scenario information for reproduction"
                 )
             
-            # Create temporary scenario file
-            temp_scenario_file = self.builder.create_temporary_scenario_file(metadata)
+            # Adapt scenario configuration if needed
+            adapted_configs = metadata.scenario_configs
+            current_version = get_current_version()
+            
+            if metadata.model_version and metadata.model_version != current_version:
+                # Adapt configurations for version compatibility
+                adaptation_warnings = []
+                for scenario_name, config in metadata.scenario_configs.items():
+                    adaptation_result = adapt_scenario_config(
+                        config, metadata.model_version, current_version
+                    )
+                    if adaptation_result.success:
+                        adapted_configs[scenario_name] = adaptation_result.adapted_config
+                        adaptation_warnings.extend(adaptation_result.warnings)
+                    else:
+                        raise ValidationError(
+                            f"Cannot adapt scenario '{scenario_name}' from {metadata.model_version} to {current_version}",
+                            "version_adaptation",
+                            context=f"Errors: {adaptation_result.errors}"
+                        )
+            
+            # Create temporary scenario file with adapted configs
+            adapted_metadata = metadata
+            adapted_metadata.scenario_configs = adapted_configs
+            temp_scenario_file = self.builder.create_temporary_scenario_file(adapted_metadata)
             
             # Run reproduction
-            reproduced_results = self._run_reproduction(metadata, temp_scenario_file)
+            reproduced_results = self._run_reproduction(adapted_metadata, temp_scenario_file)
+            
+            # Check version compatibility
+            version_compatibility = None
+            if metadata.model_version:
+                version_compatibility = get_compatibility_info(metadata.model_version, current_version)
+                
+                # Adjust tolerance based on version compatibility
+                if version_compatibility['compatibility_level'] == 'major':
+                    tolerance = max(tolerance, 0.02)  # Relax tolerance for minor version differences
+                elif version_compatibility['compatibility_level'] == 'minor':
+                    tolerance = max(tolerance, 0.05)  # Further relax for major version differences
             
             # Validate results
             validation_result = self._validate_results(
@@ -280,7 +350,8 @@ class ReproductionEngine:
                 reproduced_results=reproduced_results,
                 differences=validation_result['differences'],
                 validation_details=validation_result['details'],
-                reproduction_metadata=metadata
+                reproduction_metadata=metadata,
+                version_compatibility=version_compatibility
             )
             
         except Exception as e:
@@ -292,7 +363,8 @@ class ReproductionEngine:
                 reproduced_results={},
                 differences={'error': str(e)},
                 validation_details={'error': f"Reproduction failed: {str(e)}"},
-                reproduction_metadata=metadata if 'metadata' in locals() else None
+                reproduction_metadata=metadata if 'metadata' in locals() else None,
+                version_compatibility=None
             )
         
         finally:

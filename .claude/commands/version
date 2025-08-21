@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+"""
+Claude command for version management
+Usage: claude version [bump|current|history] [major|minor|patch]
+"""
+
+import sys
+import os
+import re
+from datetime import datetime
+
+# Add project root to path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
+
+from src.config.version import get_current_version, get_current_version_string, VERSION_HISTORY
+
+
+def update_version_file(new_major, new_minor, new_patch, description="", breaking_changes=None, new_features=None):
+    """Actually update the version.py file with new version"""
+    version_file = os.path.join(project_root, "src/config/version.py")
+    
+    with open(version_file, 'r') as f:
+        content = f.read()
+    
+    # Update CURRENT_VERSION
+    old_version_pattern = r'CURRENT_VERSION = ModelVersion\(\d+, \d+, \d+\)'
+    new_version_line = f'CURRENT_VERSION = ModelVersion({new_major}, {new_minor}, {new_patch})'
+    content = re.sub(old_version_pattern, new_version_line, content)
+    
+    # Add to SUPPORTED_VERSIONS (only if not already present)
+    new_version_obj = f'ModelVersion({new_major}, {new_minor}, {new_patch})'
+    if new_version_obj not in content:
+        supported_pattern = r'(SUPPORTED_VERSIONS = \[)(.*?)(\])'
+        def replace_supported(match):
+            start, middle, end = match.groups()
+            if middle.strip():
+                return f'{start}{middle},\n    {new_version_obj}\n{end}'
+            else:
+                return f'{start}\n    {new_version_obj}\n{end}'
+        content = re.sub(supported_pattern, replace_supported, content, flags=re.DOTALL)
+    
+    # Add to VERSION_HISTORY (only if not already present)
+    new_version_str = f"{new_major}.{new_minor}.{new_patch}"
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    if f'"{new_version_str}"' not in content:
+        history_entry = f'''    "{new_version_str}": {{
+        "release_date": "{today}",
+        "description": "{description or f'Version {new_version_str}'}",
+        "breaking_changes": {breaking_changes or []},
+        "new_features": {new_features or []}
+    }}'''
+        
+        # Find the closing brace of VERSION_HISTORY
+        history_pattern = r'(VERSION_HISTORY = \{.*?)(    \}\s*?\})'
+        def replace_history(match):
+            start, end = match.groups()
+            return f'{start},\n{history_entry}\n{end}'
+        content = re.sub(history_pattern, replace_history, content, flags=re.DOTALL)
+    
+    # Write back
+    with open(version_file, 'w') as f:
+        f.write(content)
+    
+    return new_version_str
+
+
+def bump_version(bump_type, description="", breaking_changes=None, new_features=None):
+    """Bump version and update all files"""
+    current = get_current_version()
+    
+    if bump_type == 'major':
+        new_version = (current.major + 1, 0, 0)
+    elif bump_type == 'minor':
+        new_version = (current.major, current.minor + 1, 0)
+    elif bump_type == 'patch':
+        new_version = (current.major, current.minor, current.patch + 1)
+    else:
+        raise ValueError(f"Invalid bump type: {bump_type}")
+    
+    new_version_str = update_version_file(*new_version, description, breaking_changes, new_features)
+    
+    print(f"✅ Bumped version from v{current} to v{new_version_str}")
+    return new_version_str
+
+
+def show_current():
+    """Show current version"""
+    version_str = get_current_version_string()
+    print(f"Current version: v{version_str}")
+    
+    if version_str in VERSION_HISTORY:
+        info = VERSION_HISTORY[version_str]
+        print(f"Release date: {info.get('release_date', 'Unknown')}")
+        print(f"Description: {info.get('description', 'No description')}")
+
+
+def show_history():
+    """Show version history"""
+    print("Version History:")
+    print("=" * 40)
+    
+    for version_str, info in sorted(VERSION_HISTORY.items(), reverse=True):
+        print(f"\nv{version_str} ({info.get('release_date', 'Unknown')})")
+        print(f"  {info.get('description', 'No description')}")
+        
+        if info.get('new_features'):
+            print("  New features:")
+            for feature in info['new_features']:
+                print(f"    • {feature}")
+        
+        if info.get('breaking_changes'):
+            print("  Breaking changes:")
+            for change in info['breaking_changes']:
+                print(f"    ⚠️  {change}")
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: claude version [bump|current|history] [major|minor|patch]")
+        print("Examples:")
+        print("  claude version current")
+        print("  claude version history") 
+        print("  claude version bump patch")
+        print("  claude version bump minor")
+        sys.exit(1)
+    
+    command = sys.argv[1]
+    
+    if command == 'current':
+        show_current()
+    elif command == 'history':
+        show_history()
+    elif command == 'bump':
+        if len(sys.argv) < 3:
+            print("Error: bump requires type (major|minor|patch)")
+            sys.exit(1)
+        
+        bump_type = sys.argv[2]
+        if bump_type not in ['major', 'minor', 'patch']:
+            print(f"Error: invalid bump type '{bump_type}'. Use: major, minor, or patch")
+            sys.exit(1)
+        
+        # Get optional description
+        description = ""
+        if len(sys.argv) > 3:
+            description = " ".join(sys.argv[3:])
+        
+        try:
+            new_version = bump_version(bump_type, description)
+            print(f"✅ Version bumped to v{new_version}")
+            print("\nNext steps:")
+            print("1. Run tests: python -m unittest tests.test_version_management tests.test_version_reproduction")
+            print("2. Update README.md if needed")
+            print("3. Commit changes")
+        except Exception as e:
+            print(f"❌ Error bumping version: {e}")
+            sys.exit(1)
+    else:
+        print(f"Unknown command: {command}")
+        print("Available commands: bump, current, history")
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

@@ -45,3 +45,7 @@ Before any push:
 - [ ] All examples in README are tested and working
 - [ ] Commit messages are descriptive and atomic
 - [ ] No unrelated changes bundled together
+
+## Dependencies
+
+- [ ] Did the model change? Bump the version.
