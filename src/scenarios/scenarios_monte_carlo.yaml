@@ -1,34 +1,40 @@
 # Monte Carlo scenario definitions with probability distributions
-# This file demonstrates how to define uncertainty in model parameters
+# This file contains probabilistic versions of all main scenarios
 
 moderate_enterprise_monte_carlo:
   name: Moderate Enterprise with Uncertainty
-  description: 100-person enterprise with probabilistic parameter modeling
+  description: 50-person enterprise with probabilistic parameter modeling
   
   baseline:
     profile: enterprise
-    
-    # Example of adding uncertainty to baseline metrics
-    team_size: 100
+    team_size: 50  # Fixed to match moderate_enterprise
     
     # Time metrics with triangular distributions
     avg_feature_cycle_days:
-      value: 30
+      value: 21
       distribution:
         type: triangular
-        min: 25
-        mode: 30
-        max: 40
+        min: 18
+        mode: 21
+        max: 28
     
     avg_bug_fix_hours:
-      value: 8
+      value: 6
       distribution:
         type: triangular
         min: 4
-        mode: 8
-        max: 16
+        mode: 6
+        max: 10
     
-    # Quality metrics with normal distributions
+    onboarding_days:
+      value: 30
+      distribution:
+        type: triangular
+        min: 20
+        mode: 30
+        max: 45
+    
+    # Quality metrics with distributions
     defect_escape_rate:
       value: 5.0
       distribution:
@@ -39,18 +45,14 @@ moderate_enterprise_monte_carlo:
         max: 10.0
     
     production_incidents_per_month:
-      value: 12
+      value: 8
       distribution:
         type: triangular
-        min: 8
-        mode: 12
-        max: 20
-  
-  adoption:
-    scenario: mandated
+        min: 5
+        mode: 8
+        max: 12
     
-    # Adoption parameters with uncertainty
-    initial_adopters:
+    rework_percentage:
       value: 0.15
       distribution:
         type: beta
@@ -58,75 +60,88 @@ moderate_enterprise_monte_carlo:
         beta: 17
         min: 0.05
         max: 0.25
+  
+  adoption:
+    scenario: organic
     
-    early_adopters:
-      value: 0.25
+    # Adoption parameters with uncertainty
+    initial_adopters:
+      value: 0.05
       distribution:
         type: beta
-        alpha: 5
-        beta: 15
-        min: 0.15
-        max: 0.35
+        alpha: 2
+        beta: 38
+        min: 0.02
+        max: 0.10
+    
+    early_adopters:
+      value: 0.15
+      distribution:
+        type: beta
+        alpha: 3
+        beta: 17
+        min: 0.10
+        max: 0.20
     
     dropout_rate_month:
-      value: 0.03
+      value: 0.02
       distribution:
         type: triangular
         min: 0.01
-        mode: 0.03
-        max: 0.06
+        mode: 0.02
+        max: 0.04
     
     learning_rate:
-      value: 0.2
+      value: 0.3
       distribution:
         type: uniform
-        min: 0.15
-        max: 0.25
+        min: 0.25
+        max: 0.35
     
     plateau_efficiency:
       value: 0.85
       distribution:
         type: triangular
-        min: 0.75
+        min: 0.80
         mode: 0.85
-        max: 0.95
+        max: 0.90
   
   impact:
     scenario: moderate
     
     # Impact factors with realistic uncertainty ranges
     feature_cycle_reduction:
-      value: 0.3
+      value: 0.25
       distribution:
         type: triangular
-        min: 0.2
-        mode: 0.3
-        max: 0.4
+        min: 0.20
+        mode: 0.25
+        max: 0.35
     
     bug_fix_reduction:
-      value: 0.4
+      value: 0.35
       distribution:
         type: triangular
         min: 0.25
-        mode: 0.4
-        max: 0.5
+        mode: 0.35
+        max: 0.45
     
     defect_reduction:
-      value: 0.4
+      value: 0.30
       distribution:
         type: beta
-        alpha: 4
-        beta: 6
-        min: 0.25
-        max: 0.55
+        alpha: 3
+        beta: 7
+        min: 0.20
+        max: 0.40
     
     incident_reduction:
-      value: 0.3
+      value: 0.25
       distribution:
         type: triangular
-        min: 0.2
-        mode: 0.3
-        max: 0.45
+        min: 0.15
+        mode: 0.25
+        max: 0.35
     
     # Developer effectiveness multipliers
     junior_multiplier:
@@ -134,72 +149,71 @@ moderate_enterprise_monte_carlo:
       distribution:
         type: normal
         mean: 1.5
-        std: 0.2
-        min: 1.0
-        max: 2.0
+        std: 0.15
+        min: 1.2
+        max: 1.8
     
     mid_multiplier:
+      value: 1.3
+      distribution:
+        type: normal
+        mean: 1.3
+        std: 0.1
+        min: 1.1
+        max: 1.5
+    
+    senior_multiplier:
       value: 1.2
       distribution:
         type: normal
         mean: 1.2
-        std: 0.15
-        min: 0.9
-        max: 1.5
-    
-    senior_multiplier:
-      value: 1.1
-      distribution:
-        type: normal
-        mean: 1.1
-        std: 0.1
-        min: 0.9
-        max: 1.3
+        std: 0.08
+        min: 1.0
+        max: 1.4
   
   costs:
     scenario: enterprise
     
     # Cost parameters with uncertainty
     cost_per_seat_month:
-      value: 45
+      value: 50
       distribution:
         type: triangular
-        min: 40
-        mode: 45
-        max: 55
+        min: 45
+        mode: 50
+        max: 60
     
-    token_cost_per_million:
-      value: 5.0
+    initial_tokens_per_dev_month:
+      value: 500000
+      distribution:
+        type: triangular
+        min: 300000
+        mode: 500000
+        max: 800000
+    
+    token_price_per_million:
+      value: 8
       distribution:
         type: lognormal
-        mean_log: 1.5  # ln(5.0) ≈ 1.6
+        mean_log: 2.08  # ln(8)
         std_log: 0.2
-        min: 2.0
+        min: 4.0
         max: 15.0
     
-    tokens_per_user_month_initial:
-      value: 2.0
-      distribution:
-        type: triangular
-        min: 1.0
-        mode: 2.0
-        max: 4.0
-    
-    training_cost_per_user:
-      value: 500
+    initial_training_cost_per_dev:
+      value: 2000
       distribution:
         type: uniform
-        min: 400
-        max: 600
+        min: 1500
+        max: 2500
     
-    admin_overhead_ratio:
-      value: 0.2
+    context_switch_cost_month:
+      value: 1000
       distribution:
-        type: beta
-        alpha: 2
-        beta: 8
-        min: 0.1
-        max: 0.3
+        type: triangular
+        min: 500
+        mode: 1000
+        max: 1500
   
   # Economic parameters
   economic:
@@ -211,27 +225,530 @@ moderate_enterprise_monte_carlo:
         mode: 0.10
         max: 0.12
   
-  # Parameter correlations
-  correlations:
-    - param1: adoption.initial_adopters
-      param2: adoption.early_adopters
-      correlation: 0.6
+  timeframe_months: 36
+
+
+moderate_scaleup_monte_carlo:
+  name: Moderate Scaleup with Uncertainty
+  description: 25-person scaleup with balanced AI adoption and uncertainty
+  
+  baseline:
+    profile: scaleup
+    team_size: 25
     
-    - param1: adoption.plateau_efficiency
-      param2: adoption.learning_rate
-      correlation: 0.4
+    # Time metrics
+    avg_feature_cycle_days:
+      value: 18
+      distribution:
+        type: triangular
+        min: 14
+        mode: 18
+        max: 25
     
-    - param1: impact.feature_cycle_reduction
-      param2: impact.bug_fix_reduction
-      correlation: 0.7
+    avg_bug_fix_hours:
+      value: 5
+      distribution:
+        type: triangular
+        min: 3
+        mode: 5
+        max: 8
     
-    - param1: impact.defect_reduction
-      param2: impact.incident_reduction
-      correlation: 0.8
+    # Quality metrics
+    defect_escape_rate:
+      value: 6.0
+      distribution:
+        type: normal
+        mean: 6.0
+        std: 1.2
+        min: 3.0
+        max: 10.0
     
-    - param1: costs.cost_per_seat_month
-      param2: costs.training_cost_per_user
-      correlation: 0.3
+    production_incidents_per_month:
+      value: 6
+      distribution:
+        type: triangular
+        min: 4
+        mode: 6
+        max: 10
+    
+    rework_percentage:
+      value: 0.18
+      distribution:
+        type: beta
+        alpha: 3.6
+        beta: 16.4
+        min: 0.10
+        max: 0.28
+  
+  adoption:
+    scenario: organic
+    
+    initial_adopters:
+      value: 0.05
+      distribution:
+        type: beta
+        alpha: 2
+        beta: 38
+        min: 0.02
+        max: 0.10
+    
+    early_adopters:
+      value: 0.15
+      distribution:
+        type: beta
+        alpha: 3
+        beta: 17
+        min: 0.10
+        max: 0.22
+    
+    dropout_rate_month:
+      value: 0.02
+      distribution:
+        type: triangular
+        min: 0.01
+        mode: 0.02
+        max: 0.04
+    
+    plateau_efficiency:
+      value: 0.85
+      distribution:
+        type: triangular
+        min: 0.78
+        mode: 0.85
+        max: 0.92
+  
+  impact:
+    scenario: moderate
+    
+    feature_cycle_reduction:
+      value: 0.25
+      distribution:
+        type: triangular
+        min: 0.18
+        mode: 0.25
+        max: 0.32
+    
+    bug_fix_reduction:
+      value: 0.35
+      distribution:
+        type: triangular
+        min: 0.28
+        mode: 0.35
+        max: 0.42
+    
+    defect_reduction:
+      value: 0.30
+      distribution:
+        type: beta
+        alpha: 3
+        beta: 7
+        min: 0.22
+        max: 0.38
+    
+    incident_reduction:
+      value: 0.25
+      distribution:
+        type: triangular
+        min: 0.18
+        mode: 0.25
+        max: 0.32
+  
+  costs:
+    scenario: startup  # Using startup costs for scaleup
+    
+    cost_per_seat_month:
+      value: 35
+      distribution:
+        type: triangular
+        min: 30
+        mode: 35
+        max: 45
+    
+    initial_tokens_per_dev_month:
+      value: 300000
+      distribution:
+        type: triangular
+        min: 200000
+        mode: 300000
+        max: 500000
+    
+    token_price_per_million:
+      value: 10
+      distribution:
+        type: lognormal
+        mean_log: 2.3  # ln(10)
+        std_log: 0.25
+        min: 5.0
+        max: 20.0
+    
+    initial_training_cost_per_dev:
+      value: 1000
+      distribution:
+        type: uniform
+        min: 750
+        max: 1250
+  
+  economic:
+    discount_rate_annual:
+      value: 0.12
+      distribution:
+        type: triangular
+        min: 0.10
+        mode: 0.12
+        max: 0.15
+  
+  timeframe_months: 24
+
+
+aggressive_scaleup_monte_carlo:
+  name: Aggressive Scaleup with Uncertainty
+  description: 25-person scaleup with aggressive AI adoption and optimistic projections
+  
+  baseline:
+    profile: scaleup
+    team_size: 25
+    
+    # Optimistic time metrics
+    avg_feature_cycle_days:
+      value: 14
+      distribution:
+        type: triangular
+        min: 10
+        mode: 14
+        max: 18
+    
+    avg_bug_fix_hours:
+      value: 4
+      distribution:
+        type: triangular
+        min: 2
+        mode: 4
+        max: 6
+    
+    # Quality metrics
+    defect_escape_rate:
+      value: 4.0
+      distribution:
+        type: normal
+        mean: 4.0
+        std: 0.8
+        min: 2.0
+        max: 7.0
+    
+    production_incidents_per_month:
+      value: 4
+      distribution:
+        type: triangular
+        min: 2
+        mode: 4
+        max: 7
+    
+    rework_percentage:
+      value: 0.12
+      distribution:
+        type: beta
+        alpha: 2.4
+        beta: 17.6
+        min: 0.05
+        max: 0.20
+  
+  adoption:
+    scenario: grassroots
+    
+    initial_adopters:
+      value: 0.10
+      distribution:
+        type: beta
+        alpha: 3
+        beta: 27
+        min: 0.05
+        max: 0.18
+    
+    early_adopters:
+      value: 0.20
+      distribution:
+        type: beta
+        alpha: 4
+        beta: 16
+        min: 0.15
+        max: 0.28
+    
+    dropout_rate_month:
+      value: 0.015
+      distribution:
+        type: triangular
+        min: 0.005
+        mode: 0.015
+        max: 0.025
+    
+    plateau_efficiency:
+      value: 0.90
+      distribution:
+        type: triangular
+        min: 0.85
+        mode: 0.90
+        max: 0.95
+  
+  impact:
+    scenario: aggressive
+    
+    feature_cycle_reduction:
+      value: 0.40
+      distribution:
+        type: triangular
+        min: 0.32
+        mode: 0.40
+        max: 0.50
+    
+    bug_fix_reduction:
+      value: 0.50
+      distribution:
+        type: triangular
+        min: 0.40
+        mode: 0.50
+        max: 0.60
+    
+    defect_reduction:
+      value: 0.45
+      distribution:
+        type: beta
+        alpha: 4.5
+        beta: 5.5
+        min: 0.35
+        max: 0.55
+    
+    incident_reduction:
+      value: 0.40
+      distribution:
+        type: triangular
+        min: 0.30
+        mode: 0.40
+        max: 0.50
+    
+    junior_multiplier:
+      value: 1.8
+      distribution:
+        type: normal
+        mean: 1.8
+        std: 0.2
+        min: 1.4
+        max: 2.2
+  
+  costs:
+    scenario: aggressive
+    
+    cost_per_seat_month:
+      value: 100
+      distribution:
+        type: triangular
+        min: 80
+        mode: 100
+        max: 130
+    
+    initial_tokens_per_dev_month:
+      value: 1000000
+      distribution:
+        type: triangular
+        min: 700000
+        mode: 1000000
+        max: 1500000
+    
+    token_price_per_million:
+      value: 6
+      distribution:
+        type: lognormal
+        mean_log: 1.79  # ln(6)
+        std_log: 0.3
+        min: 3.0
+        max: 12.0
+    
+    initial_training_cost_per_dev:
+      value: 3000
+      distribution:
+        type: uniform
+        min: 2500
+        max: 3500
+  
+  economic:
+    discount_rate_annual:
+      value: 0.15
+      distribution:
+        type: triangular
+        min: 0.12
+        mode: 0.15
+        max: 0.20
+  
+  timeframe_months: 24
+
+
+aggressive_enterprise_monte_carlo:
+  name: Aggressive Enterprise with Uncertainty
+  description: 50-person enterprise with aggressive AI adoption
+  
+  baseline:
+    profile: enterprise
+    team_size: 50
+    
+    # Aggressive time improvements
+    avg_feature_cycle_days:
+      value: 18
+      distribution:
+        type: triangular
+        min: 14
+        mode: 18
+        max: 24
+    
+    avg_bug_fix_hours:
+      value: 5
+      distribution:
+        type: triangular
+        min: 3
+        mode: 5
+        max: 8
+    
+    # Quality metrics
+    defect_escape_rate:
+      value: 4.0
+      distribution:
+        type: normal
+        mean: 4.0
+        std: 0.8
+        min: 2.0
+        max: 7.0
+    
+    production_incidents_per_month:
+      value: 6
+      distribution:
+        type: triangular
+        min: 4
+        mode: 6
+        max: 10
+    
+    rework_percentage:
+      value: 0.10
+      distribution:
+        type: beta
+        alpha: 2
+        beta: 18
+        min: 0.05
+        max: 0.18
+  
+  adoption:
+    scenario: mandated
+    
+    initial_adopters:
+      value: 0.20
+      distribution:
+        type: beta
+        alpha: 4
+        beta: 16
+        min: 0.12
+        max: 0.30
+    
+    early_adopters:
+      value: 0.30
+      distribution:
+        type: beta
+        alpha: 6
+        beta: 14
+        min: 0.22
+        max: 0.38
+    
+    dropout_rate_month:
+      value: 0.03
+      distribution:
+        type: triangular
+        min: 0.015
+        mode: 0.03
+        max: 0.05
+    
+    plateau_efficiency:
+      value: 0.80
+      distribution:
+        type: triangular
+        min: 0.72
+        mode: 0.80
+        max: 0.88
+  
+  impact:
+    scenario: aggressive
+    
+    feature_cycle_reduction:
+      value: 0.40
+      distribution:
+        type: triangular
+        min: 0.30
+        mode: 0.40
+        max: 0.50
+    
+    bug_fix_reduction:
+      value: 0.50
+      distribution:
+        type: triangular
+        min: 0.38
+        mode: 0.50
+        max: 0.62
+    
+    defect_reduction:
+      value: 0.45
+      distribution:
+        type: beta
+        alpha: 4.5
+        beta: 5.5
+        min: 0.32
+        max: 0.58
+    
+    incident_reduction:
+      value: 0.40
+      distribution:
+        type: triangular
+        min: 0.28
+        mode: 0.40
+        max: 0.52
+  
+  costs:
+    scenario: aggressive
+    
+    cost_per_seat_month:
+      value: 100
+      distribution:
+        type: triangular
+        min: 85
+        mode: 100
+        max: 120
+    
+    initial_tokens_per_dev_month:
+      value: 1000000
+      distribution:
+        type: triangular
+        min: 750000
+        mode: 1000000
+        max: 1400000
+    
+    token_price_per_million:
+      value: 6
+      distribution:
+        type: lognormal
+        mean_log: 1.79  # ln(6)
+        std_log: 0.25
+        min: 3.0
+        max: 12.0
+    
+    initial_training_cost_per_dev:
+      value: 3000
+      distribution:
+        type: uniform
+        min: 2500
+        max: 3500
+  
+  economic:
+    discount_rate_annual:
+      value: 0.10
+      distribution:
+        type: triangular
+        min: 0.08
+        mode: 0.10
+        max: 0.13
   
   timeframe_months: 36
 
@@ -242,6 +759,7 @@ conservative_startup_monte_carlo:
   
   baseline:
     profile: startup
+    team_size: 10
     
     # Startup metrics with higher uncertainty
     avg_feature_cycle_days:
@@ -252,6 +770,14 @@ conservative_startup_monte_carlo:
         mode: 14
         max: 30
     
+    avg_bug_fix_hours:
+      value: 4
+      distribution:
+        type: triangular
+        min: 2
+        mode: 4
+        max: 8
+    
     defect_escape_rate:
       value: 8.0
       distribution:
@@ -260,6 +786,23 @@ conservative_startup_monte_carlo:
         std: 2.0
         min: 3.0
         max: 15.0
+    
+    production_incidents_per_month:
+      value: 5
+      distribution:
+        type: triangular
+        min: 2
+        mode: 5
+        max: 10
+    
+    rework_percentage:
+      value: 0.25
+      distribution:
+        type: beta
+        alpha: 5
+        beta: 15
+        min: 0.15
+        max: 0.35
   
   adoption:
     scenario: organic
@@ -274,34 +817,67 @@ conservative_startup_monte_carlo:
         min: 0.01
         max: 0.15
     
+    early_adopters:
+      value: 0.15
+      distribution:
+        type: beta
+        alpha: 3
+        beta: 17
+        min: 0.08
+        max: 0.25
+    
     dropout_rate_month:
-      value: 0.05
+      value: 0.02
       distribution:
         type: triangular
-        min: 0.02
-        mode: 0.05
-        max: 0.10
+        min: 0.01
+        mode: 0.02
+        max: 0.05
+    
+    plateau_efficiency:
+      value: 0.85
+      distribution:
+        type: triangular
+        min: 0.75
+        mode: 0.85
+        max: 0.92
   
   impact:
     scenario: conservative
     
     # Conservative impact estimates with wide ranges
     feature_cycle_reduction:
-      value: 0.2
+      value: 0.10
       distribution:
         type: triangular
-        min: 0.1
-        mode: 0.2
-        max: 0.35
+        min: 0.05
+        mode: 0.10
+        max: 0.20
+    
+    bug_fix_reduction:
+      value: 0.15
+      distribution:
+        type: triangular
+        min: 0.08
+        mode: 0.15
+        max: 0.25
     
     defect_reduction:
-      value: 0.25
+      value: 0.15
       distribution:
         type: beta
-        alpha: 2.5
-        beta: 7.5
-        min: 0.1
-        max: 0.4
+        alpha: 1.5
+        beta: 8.5
+        min: 0.05
+        max: 0.25
+    
+    incident_reduction:
+      value: 0.10
+      distribution:
+        type: triangular
+        min: 0.05
+        mode: 0.10
+        max: 0.18
   
   costs:
     scenario: startup
@@ -312,6 +888,39 @@ conservative_startup_monte_carlo:
         type: uniform
         min: 25
         max: 40
+    
+    initial_tokens_per_dev_month:
+      value: 200000
+      distribution:
+        type: triangular
+        min: 100000
+        mode: 200000
+        max: 400000
+    
+    token_price_per_million:
+      value: 10
+      distribution:
+        type: lognormal
+        mean_log: 2.3  # ln(10)
+        std_log: 0.3
+        min: 5.0
+        max: 25.0
+    
+    initial_training_cost_per_dev:
+      value: 500
+      distribution:
+        type: uniform
+        min: 300
+        max: 700
+  
+  economic:
+    discount_rate_annual:
+      value: 0.15
+      distribution:
+        type: triangular
+        min: 0.12
+        mode: 0.15
+        max: 0.20
   
   timeframe_months: 24
 
