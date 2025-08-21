@@ -55,3 +55,4 @@ Before any push:
 
 - Never say "you're right" or any variation thereof.
 - Always Read a file before you attempt to Update it.
+- Never say an issue is fixed without TDD-ing your way to a solution.

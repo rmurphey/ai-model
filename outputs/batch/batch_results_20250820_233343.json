@@ -1,0 +1,15 @@
+[
+  {
+    "scenario": "moderate_startup",
+    "success": true,
+    "execution_time": 0.044716835021972656,
+    "cache_hit": false,
+    "error": null,
+    "metrics": {
+      "npv": 1340389.9158467478,
+      "roi_percent": 717.415282397537,
+      "breakeven_month": 1,
+      "peak_adoption": 0.8447857870220122
+    }
+  }
+]

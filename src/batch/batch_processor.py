@@ -220,12 +220,35 @@ class BatchProcessor:
             
             # Run additional analyses if requested
             if self.config.include_monte_carlo:
-                # TODO: Add Monte Carlo processing
-                pass
+                # Run Monte Carlo simulation
+                monte_carlo_results = model.run_monte_carlo(
+                    scenario_name,
+                    iterations=self.config.monte_carlo_iterations
+                )
+                results['monte_carlo'] = {
+                    'mean_npv': float(monte_carlo_results.npv_stats['mean']),
+                    'std_npv': float(monte_carlo_results.npv_stats['std']),
+                    'percentile_5': float(monte_carlo_results.npv_stats.get('p5', monte_carlo_results.npv_stats.get('p10', 0))),
+                    'percentile_95': float(monte_carlo_results.npv_stats.get('p95', monte_carlo_results.npv_stats.get('p90', 0))),
+                    'probability_positive': float(monte_carlo_results.probability_positive_npv),
+                    'iterations': self.config.monte_carlo_iterations
+                }
             
             if self.config.include_sensitivity:
-                # TODO: Add sensitivity processing
-                pass
+                # Run sensitivity analysis
+                from ..analysis.sensitivity_analysis import run_sensitivity_analysis
+                
+                sensitivity_results = run_sensitivity_analysis(
+                    scenario_name,
+                    n_samples=self.config.sensitivity_samples
+                )
+                
+                # Extract top parameters by importance
+                results['sensitivity'] = {
+                    'top_parameters': sensitivity_results['ranked_parameters'][:5],
+                    'total_variance_explained': sensitivity_results.get('variance_explained', 0),
+                    'samples': self.config.sensitivity_samples
+                }
             
             execution_time = time.time() - start_time
             

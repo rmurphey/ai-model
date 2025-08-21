@@ -1,0 +1,9 @@
+[
+  {
+    "scenario": "moderate_enterprise",
+    "success": false,
+    "execution_time": 0.07205700874328613,
+    "cache_hit": false,
+    "error": "'MonteCarloResults' object has no attribute 'mean_npv'"
+  }
+]
