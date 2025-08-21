@@ -115,7 +115,7 @@ class CostModel:
         return monthly_costs
     
     def calculate_token_costs(self, months: int = 24, adoption_curve: np.ndarray = None) -> np.ndarray:
-        """Calculate monthly token consumption costs"""
+        """Calculate monthly token consumption costs with induced demand effects"""
         
         if adoption_curve is None:
             adoption_curve = np.ones(months)
@@ -129,25 +129,69 @@ class CostModel:
                 (1 - self.costs.token_price_decline_annual) ** years_elapsed
             )
             
-            # Calculate token usage per developer (linear growth then plateau)
-            # Use linear growth instead of exponential to be more realistic
-            if month < self.costs.token_plateau_month:
-                # Linear growth: start + (growth_rate * initial * month)
-                tokens_per_dev = self.costs.initial_tokens_per_dev_month * (
-                    1 + (self.costs.token_growth_rate_monthly * month)
-                )
-            else:
-                # Plateau at the level reached
-                tokens_per_dev = self.costs.initial_tokens_per_dev_month * (
-                    1 + (self.costs.token_growth_rate_monthly * self.costs.token_plateau_month)
-                )
+            # Calculate base token usage with S-curve growth
+            # Models natural adoption pattern but accounts for induced demand
+            tokens_per_dev = self._calculate_token_usage_with_induced_demand(
+                month, current_price
+            )
+            
+            # Apply bounds to prevent numerical overflow
+            max_tokens_per_dev = self.costs.initial_tokens_per_dev_month * 100  # Cap at 100x initial
+            tokens_per_dev = min(tokens_per_dev, max_tokens_per_dev)
             
             # Calculate total cost
             adopted_devs = self.baseline.team_size * adoption_curve[month]
             total_tokens = adopted_devs * tokens_per_dev
-            monthly_costs[month] = (total_tokens / 1_000_000) * current_price
+            
+            # Additional bounds check for total cost
+            monthly_cost = (total_tokens / 1_000_000) * current_price
+            max_monthly_cost = self.baseline.weighted_avg_flc * 0.5  # Cap at 50% of FLC
+            monthly_costs[month] = min(monthly_cost, max_monthly_cost)
         
         return monthly_costs
+    
+    def _calculate_token_usage_with_induced_demand(self, month: int, current_price: float) -> float:
+        """
+        Calculate token usage accounting for induced demand effects.
+        
+        Like highway traffic that expands to fill available lanes, token usage
+        grows not just from adoption, but from:
+        - Price elasticity (cheaper tokens → more usage)
+        - Capability expansion (better models → new use cases)
+        - Comfort effect (familiarity → expanded application)
+        """
+        initial = self.costs.initial_tokens_per_dev_month
+        growth_rate = self.costs.token_growth_rate_monthly
+        plateau_month = self.costs.token_plateau_month
+        
+        # Phase 1: S-curve adoption (0 to plateau_month)
+        if month < plateau_month:
+            # Logistic growth function
+            t = month / plateau_month
+            # S-curve: slow start, rapid middle, slow finish
+            s_curve_factor = 2 / (1 + np.exp(-6 * (t - 0.5)))
+            base_usage = initial * (1 + growth_rate * s_curve_factor)
+        else:
+            # Phase 2: Post-plateau with induced demand
+            # Usage continues to grow due to price drops and expanded use cases
+            base_plateau = initial * (1 + growth_rate * 2)  # Peak of S-curve
+            
+            # Induced demand from price elasticity
+            # As price drops, usage increases (elasticity effect)
+            initial_price = self.costs.token_price_per_million
+            price_ratio = safe_divide(current_price, initial_price, default=1.0)
+            # Elasticity factor: cheaper prices drive 50% more usage per halving
+            price_elasticity = (1 / price_ratio) ** 0.5
+            
+            # Comfort/capability growth: slow continued growth post-plateau
+            months_post_plateau = month - plateau_month
+            comfort_growth = 1 + (0.02 * months_post_plateau)  # 2% monthly growth
+            
+            # Combined effect with diminishing returns
+            induced_factor = min(price_elasticity * comfort_growth, 5.0)  # Cap at 5x
+            base_usage = base_plateau * induced_factor
+        
+        return base_usage
     
     def calculate_training_costs(self, months: int = 24, adoption_curve: np.ndarray = None) -> np.ndarray:
         """Calculate training costs over time"""

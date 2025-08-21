@@ -95,13 +95,14 @@ class ModelVersion:
 
 
 # Current model version
-CURRENT_VERSION = ModelVersion(2, 0, 0)
+CURRENT_VERSION = ModelVersion(2, 0, 1)
 
 # List of supported versions for reproduction
 SUPPORTED_VERSIONS = [
     ModelVersion(1, 0, 0),
     ModelVersion(1, 1, 0),
-    ModelVersion(2, 0, 0)
+    ModelVersion(2, 0, 0),
+    ModelVersion(2, 0, 1)
 ]
 
 # Version history and breaking changes
@@ -129,6 +130,19 @@ VERSION_HISTORY = {
             "CLI support for Monte Carlo analysis with customizable iterations",
             "Text-based visualization for distribution results",
             "Correlation support between parameters"
+        ]
+    },
+    "2.0.1": {
+        "release_date": "2025-08-21",
+        "description": "Fix numerical stability in cost calculations with induced demand model",
+        "breaking_changes": [],
+        "new_features": [
+            "Logistic growth model for token usage with induced demand effects",
+            "Price elasticity modeling (cheaper tokens → increased usage)",
+            "Overflow protection for extreme parameter values",
+            "Bounded cost projections (capped at 100x initial or 50% FLC)",
+            "Improved long-term stability for 36+ month projections",
+            "Tests for extreme growth scenarios and numerical stability"
         ]
     }
 }

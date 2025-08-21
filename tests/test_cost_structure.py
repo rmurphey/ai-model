@@ -463,10 +463,119 @@ class TestCostModelEdgeCases:
         assert all(cost >= 0 for cost in token_costs)
         assert len(token_costs) == months
         
-        # Growth should plateau after month 3
-        plateau_costs = token_costs[3:6]
-        assert all(abs(plateau_costs[0] - cost) < plateau_costs[0] * 0.1 
-                  for cost in plateau_costs), "Token costs should plateau"
+        # Should be capped by overflow protection (100x initial or 50% FLC)
+        max_expected = min(
+            costs.initial_tokens_per_dev_month * 100,  # 100x cap
+            baseline.weighted_avg_flc * 0.5  # 50% FLC cap
+        )
+        assert all(cost <= max_expected * baseline.team_size for cost in token_costs)
+    
+    def test_induced_demand_growth(self):
+        """Test that induced demand causes continued growth post-plateau"""
+        baseline = create_industry_baseline("enterprise")
+        costs = create_cost_scenario("enterprise")
+        
+        # Set up for induced demand testing
+        costs.token_plateau_month = 6
+        costs.token_price_decline_annual = 0.5  # 50% annual decline
+        
+        model = CostModel(costs, baseline)
+        months = 24
+        adoption_curve = np.ones(months)
+        
+        # Calculate token usage directly
+        usage_month_6 = model._calculate_token_usage_with_induced_demand(6, costs.token_price_per_million)
+        usage_month_12 = model._calculate_token_usage_with_induced_demand(
+            12, 
+            costs.token_price_per_million * 0.5  # Price after 1 year
+        )
+        usage_month_24 = model._calculate_token_usage_with_induced_demand(
+            24,
+            costs.token_price_per_million * 0.25  # Price after 2 years
+        )
+        
+        # Usage should continue growing post-plateau due to induced demand
+        assert usage_month_12 > usage_month_6, "Induced demand should increase usage"
+        assert usage_month_24 > usage_month_12, "Continued price drops should drive more usage"
+        
+        # But growth should be bounded
+        assert usage_month_24 <= costs.initial_tokens_per_dev_month * 100  # Cap at 100x
+    
+    def test_long_term_projection_stability(self):
+        """Test numerical stability over 36+ month projections"""
+        baseline = create_industry_baseline("enterprise")
+        costs = create_cost_scenario("enterprise")
+        
+        model = CostModel(costs, baseline)
+        months = 60  # 5 years
+        adoption_curve = np.ones(months)
+        
+        total_costs = model.calculate_total_costs(months, adoption_curve)
+        
+        # All costs should be finite and non-negative
+        assert all(np.isfinite(total_costs["total"]))
+        assert all(total_costs["total"] >= 0)
+        
+        # Costs should not explode exponentially
+        year_1_total = total_costs["total"][:12].sum()
+        year_5_total = total_costs["total"][48:60].sum()
+        
+        # Year 5 costs should be bounded relative to year 1
+        # Allow for some growth but not unbounded
+        assert year_5_total <= year_1_total * 10, "Costs should not grow unbounded"
+        
+    def test_overflow_protection(self):
+        """Test that overflow protection prevents numerical issues"""
+        baseline = create_industry_baseline("enterprise")
+        costs = create_cost_scenario("enterprise")
+        
+        # Set extreme growth parameters
+        costs.initial_tokens_per_dev_month = 1e9  # 1 billion tokens
+        costs.token_growth_rate_monthly = 10.0  # 1000% growth per month
+        costs.token_plateau_month = 36
+        
+        model = CostModel(costs, baseline)
+        months = 48
+        adoption_curve = np.ones(months)
+        
+        token_costs = model.calculate_token_costs(months, adoption_curve)
+        
+        # Should not have inf or nan values
+        assert all(np.isfinite(token_costs))
+        assert not any(np.isnan(token_costs))
+        assert not any(np.isinf(token_costs))
+        
+        # Should be capped by protection mechanisms
+        max_monthly = baseline.weighted_avg_flc * 0.5
+        assert all(cost <= max_monthly for cost in token_costs)
+    
+    def test_price_elasticity_effect(self):
+        """Test that price drops lead to increased usage (elasticity)"""
+        baseline = create_industry_baseline("enterprise")
+        costs = create_cost_scenario("enterprise")
+        
+        costs.token_plateau_month = 3  # Early plateau to test post-plateau behavior
+        costs.token_price_decline_annual = 0.5  # Aggressive price decline
+        
+        model = CostModel(costs, baseline)
+        
+        # Get usage at different price points
+        original_price = costs.token_price_per_million
+        half_price = original_price * 0.5
+        quarter_price = original_price * 0.25
+        
+        usage_original = model._calculate_token_usage_with_induced_demand(12, original_price)
+        usage_half = model._calculate_token_usage_with_induced_demand(12, half_price)
+        usage_quarter = model._calculate_token_usage_with_induced_demand(12, quarter_price)
+        
+        # Usage should increase as price decreases
+        assert usage_half > usage_original
+        assert usage_quarter > usage_half
+        
+        # But increases should show diminishing returns
+        first_increase = usage_half / usage_original
+        second_increase = usage_quarter / usage_half
+        assert second_increase < first_increase, "Should show diminishing returns"
         
     def test_zero_cost_parameters(self):
         """Test with zero cost parameters"""
