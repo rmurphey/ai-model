@@ -363,8 +363,8 @@ class TestNextTaskAnalyzer:
         """Test quick stats generation"""
         tasks = [
             Task("Fix tests", "Tests failing", 100, "critical", "pytest", "reason"),
-            Task("Commit", "Uncommitted", 75, "high", "git commit", "reason"),
-            Task("Issue", "Open issue", 40, "medium", "gh issue", "reason"),
+            Task("Commit uncommitted changes", "Uncommitted", 75, "high", "git commit", "reason"),
+            Task("Work on issue", "Open issue", 40, "medium", "gh issue", "reason"),
             Task("TODO", "TODO found", 50, "medium", "grep", "reason")
         ]
         

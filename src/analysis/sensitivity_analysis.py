@@ -430,9 +430,6 @@ def run_sensitivity_analysis(scenario_name: str, n_samples: int = 512) -> Dict[s
     # Load scenario configuration
     scenario_config = load_scenario(scenario_name)
     
-    # Create parameter distributions from scenario
-    distributions = {}
-    
     # Add key parameters with reasonable variation ranges
     base_params = {
         'adoption_rate': scenario_config.get('adoption', {}).get('early_adopters', 0.15),
@@ -443,13 +440,12 @@ def run_sensitivity_analysis(scenario_name: str, n_samples: int = 512) -> Dict[s
     }
     
     # Create distributions with ±30% variation
+    from ..model.distributions import Uniform
+    param_distributions = ParameterDistributions()
     for param_name, base_value in base_params.items():
-        distributions[param_name] = Distribution(
-            type='uniform',
-            parameters={
-                'min': base_value * 0.7,
-                'max': base_value * 1.3
-            }
+        param_distributions.add_distribution(
+            param_name,
+            Uniform(min_val=base_value * 0.7, max_val=base_value * 1.3)
         )
     
     # Define model function for sensitivity analysis
@@ -490,7 +486,6 @@ def run_sensitivity_analysis(scenario_name: str, n_samples: int = 512) -> Dict[s
             return 0.0
     
     # Run sensitivity analysis
-    param_distributions = ParameterDistributions(distributions)
     analyzer = SobolAnalyzer(model_function, param_distributions)
     sensitivity_results = analyzer.calculate_indices(n_samples=n_samples)
     

@@ -13,7 +13,10 @@ from src.analysis.sensitivity_analysis import (
     perform_sensitivity_analysis,
     run_sensitivity_analysis
 )
-from src.model.distributions import Distribution, ParameterDistributions
+from src.model.distributions import (
+    Distribution, ParameterDistributions, 
+    Uniform, Normal, Triangular, Beta, LogNormal, Deterministic
+)
 
 
 class TestSensitivityResults:
@@ -45,16 +48,10 @@ class TestSobolAnalyzer:
     @pytest.fixture
     def simple_distributions(self):
         """Create simple parameter distributions"""
-        return ParameterDistributions({
-            "param1": Distribution(
-                type="uniform",
-                parameters={"min": 0, "max": 1}
-            ),
-            "param2": Distribution(
-                type="normal",
-                parameters={"mean": 5, "std": 1}
-            )
-        })
+        dist = ParameterDistributions()
+        dist.add_distribution("param1", Uniform(min_val=0, max_val=1))
+        dist.add_distribution("param2", Normal(mean_val=5, std_val=1))
+        return dist
     
     @pytest.fixture
     def simple_model(self):
@@ -69,8 +66,8 @@ class TestSobolAnalyzer:
         analyzer = SobolAnalyzer(simple_model, simple_distributions)
         
         assert analyzer.model_func == simple_model
-        assert analyzer.parameter_distributions == simple_distributions
-        assert analyzer.parameter_names == ["param1", "param2"]
+        assert analyzer.distributions == simple_distributions
+        assert analyzer.param_names == ["param1", "param2"]
         assert analyzer.n_params == 2
     
     def test_generate_samples(self, simple_model, simple_distributions):
@@ -187,9 +184,8 @@ class TestSensitivityAnalysisFunctions:
         def dummy_model(params):
             return params.get("x", 0) ** 2
         
-        distributions = ParameterDistributions({
-            "x": Distribution(type="uniform", parameters={"min": 0, "max": 1})
-        })
+        distributions = ParameterDistributions()
+        distributions.add_distribution("x", Uniform(min_val=0, max_val=1))
         
         with patch('src.analysis.sensitivity_analysis.cached_result') as mock_cache:
             # Make decorator pass through
@@ -269,11 +265,10 @@ class TestSensitivityAnalysisIntegration:
             x3 = params["x3"]
             return np.sin(x1) + 7 * np.sin(x2)**2 + 0.1 * x3**4 * np.sin(x1)
         
-        distributions = ParameterDistributions({
-            "x1": Distribution(type="uniform", parameters={"min": -np.pi, "max": np.pi}),
-            "x2": Distribution(type="uniform", parameters={"min": -np.pi, "max": np.pi}),
-            "x3": Distribution(type="uniform", parameters={"min": -np.pi, "max": np.pi})
-        })
+        distributions = ParameterDistributions()
+        distributions.add_distribution("x1", Uniform(min_val=-np.pi, max_val=np.pi))
+        distributions.add_distribution("x2", Uniform(min_val=-np.pi, max_val=np.pi))
+        distributions.add_distribution("x3", Uniform(min_val=-np.pi, max_val=np.pi))
         
         analyzer = SobolAnalyzer(nonlinear_model, distributions)
         results = analyzer.calculate_indices(n_samples=128)
@@ -294,10 +289,9 @@ class TestSensitivityAnalysisIntegration:
             time.sleep(0.001)
             return params["a"] + params["b"]
         
-        distributions = ParameterDistributions({
-            "a": Distribution(type="uniform", parameters={"min": 0, "max": 1}),
-            "b": Distribution(type="uniform", parameters={"min": 0, "max": 1})
-        })
+        distributions = ParameterDistributions()
+        distributions.add_distribution("a", Uniform(min_val=0, max_val=1))
+        distributions.add_distribution("b", Uniform(min_val=0, max_val=1))
         
         analyzer = SobolAnalyzer(slow_model, distributions)
         
@@ -313,9 +307,8 @@ class TestSensitivityAnalysisIntegration:
         def single_param_model(params):
             return params["only"] * 2
         
-        single_dist = ParameterDistributions({
-            "only": Distribution(type="uniform", parameters={"min": 0, "max": 1})
-        })
+        single_dist = ParameterDistributions()
+        single_dist.add_distribution("only", Uniform(min_val=0, max_val=1))
         
         analyzer = SobolAnalyzer(single_param_model, single_dist)
         results = analyzer.calculate_indices(n_samples=16)
@@ -328,9 +321,8 @@ class TestSensitivityAnalysisIntegration:
         def constant_model(params):
             return 42.0
         
-        const_dist = ParameterDistributions({
-            "unused": Distribution(type="uniform", parameters={"min": 0, "max": 1})
-        })
+        const_dist = ParameterDistributions()
+        const_dist.add_distribution("unused", Uniform(min_val=0, max_val=1))
         
         analyzer2 = SobolAnalyzer(constant_model, const_dist)
         results2 = analyzer2.calculate_indices(n_samples=16)

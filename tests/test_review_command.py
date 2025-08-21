@@ -119,6 +119,7 @@ class TestReviewCommand:
             "findings": {
                 "high_priority": [
                     {
+                        "category": "Performance",
                         "issue": "Performance",
                         "description": "Needs caching",
                         "recommendation": "Add caching",

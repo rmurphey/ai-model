@@ -147,7 +147,7 @@ class TestBatchProcessor:
         """Test BatchProcessor initialization"""
         assert processor.config == simple_config
         assert processor.results == []
-        assert processor.output_dir.exists()
+        assert Path(processor.config.output_dir).exists()
     
     @patch('src.batch.batch_processor.AIImpactModel')
     def test_process_scenario_success(self, mock_model_class, processor):
@@ -323,34 +323,33 @@ class TestBatchProcessor:
         assert "1,000,000" in report or "1000000" in report
         assert "Failed" in report
     
-    def test_save_results(self, processor, tmp_path):
+    def test_save_batch_results(self, processor, tmp_path):
         """Test saving batch results"""
         processor.config.output_dir = str(tmp_path)
-        processor.output_dir = tmp_path
-        processor.timestamp = "20240101_120000"
         
         processor.results = [
             BatchResult("scenario1", True, {"npv": 1000000}, execution_time=1.0)
         ]
         
         report = "# Test Report"
-        report_path, json_path = processor._save_results(report)
+        processor._save_batch_results(report)
         
-        assert report_path.exists()
-        assert json_path.exists()
-        assert report_path.name == "batch_report_20240101_120000.md"
-        assert json_path.name == "batch_results_20240101_120000.json"
+        # Check files were created in output dir
+        md_files = list(tmp_path.glob("*.md"))
+        json_files = list(tmp_path.glob("*.json"))
+        
+        assert len(md_files) == 1
+        assert len(json_files) == 1
         
         # Check content
-        assert report_path.read_text() == report
-        saved_json = json.loads(json_path.read_text())
-        assert saved_json["results"][0]["scenario_name"] == "scenario1"
+        assert md_files[0].read_text() == report
+        saved_json = json.loads(json_files[0].read_text())
+        assert saved_json[0]["scenario"] == "scenario1"
     
     @patch('src.batch.batch_processor.AIImpactModel')
     def test_run_complete_workflow(self, mock_model_class, processor, tmp_path):
         """Test complete batch processing workflow"""
         processor.config.output_dir = str(tmp_path)
-        processor.output_dir = tmp_path
         processor.config.parallel_workers = 1  # Sequential for simplicity
         
         mock_model = Mock()
