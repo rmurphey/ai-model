@@ -136,6 +136,7 @@ class ScenarioLoader:
         """Load a specific scenario from modular structure."""
         # Check various possible locations
         possible_files = [
+            self.scenarios_path / f"{name}.yaml",  # Check root directory first
             self.scenarios_path / "scenarios" / "deterministic" / f"{name}.yaml",
             self.scenarios_path / "scenarios" / "monte_carlo" / f"{name}.yaml",
             self.scenarios_path / "scenarios" / "monte_carlo" / f"{name.replace('_monte_carlo', '')}.yaml",
@@ -159,7 +160,7 @@ class ScenarioLoader:
         """Load and compose a scenario from a file."""
         try:
             with open(file_path, 'r') as f:
-                scenario = yaml.safe_load(f)
+                data = yaml.safe_load(f)
         except yaml.YAMLError as e:
             raise ConfigurationError(
                 f"Invalid YAML format in {file_path}",
@@ -171,6 +172,16 @@ class ScenarioLoader:
                     f"Error details: {str(e)}"
                 ]
             )
+        
+        # If data has a single top-level key that matches the file name, extract it
+        if isinstance(data, dict) and len(data) == 1:
+            key = list(data.keys())[0]
+            if key == file_path.stem:
+                scenario = data[key]
+            else:
+                scenario = data
+        else:
+            scenario = data
         
         # Handle composition if 'extends' is specified
         if 'extends' in scenario:
