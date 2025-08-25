@@ -334,20 +334,43 @@ class BatchProcessor:
             return "## Comparison Report\n\nInsufficient successful scenarios for comparison."
         
         report = []
-        report.append("## Scenario Comparison\n")
+        report.append("## Comparison Report\n")
+        report.append("### Scenario Comparison\n")
+        
+        # Helper function to get value from nested or flat structure
+        def get_val(data, key, default=0):
+            # Try flat structure first
+            if key in data:
+                return data[key]
+            # Try nested structure (e.g., financial.npv)
+            if 'financial' in data and key in data['financial']:
+                return data['financial'][key]
+            if 'adoption' in data and key in data['adoption']:
+                return data['adoption'][key]
+            return default
         
         # Create comparison table
         comparison_data = []
         for result in successful_results:
             data = result.results
+            # Get ROI value - handle both roi and roi_percent
+            roi_value = get_val(data, 'roi', get_val(data, 'roi_percent', 0))
+            if roi_value < 10:  # Likely a ratio, convert to percentage
+                roi_value = roi_value * 100
+            
+            # Get peak adoption - handle both percentage and ratio
+            peak_adopt = get_val(data, 'peak', get_val(data, 'peak_adoption', 0))
+            if peak_adopt <= 1.0:  # Likely a ratio, convert to percentage
+                peak_adopt = peak_adopt * 100
+                
             comparison_data.append({
                 'Scenario': result.scenario_name,
-                'NPV': f"${data.get('npv', 0):,.0f}",
-                'ROI': f"{data.get('roi_percent', 0):.1f}%",
-                'Breakeven': f"{data.get('breakeven_month', 'N/A')} months",
-                'Peak Adoption': f"{data.get('peak_adoption', 0)*100:.1f}%",
-                'Total Cost': f"${data.get('total_cost_3y', 0):,.0f}",
-                'Total Value': f"${data.get('total_value_3y', 0):,.0f}"
+                'NPV': f"${get_val(data, 'npv', 0):,.0f}",
+                'ROI': f"{roi_value:.1f}%",
+                'Breakeven': f"{get_val(data, 'breakeven_month', 'N/A')} months",
+                'Peak Adoption': f"{peak_adopt:.1f}%",
+                'Total Cost': f"${get_val(data, 'total_cost_3y', 0):,.0f}",
+                'Total Value': f"${get_val(data, 'total_value_3y', 0):,.0f}"
             })
         
         # Convert to markdown table
@@ -357,22 +380,47 @@ class BatchProcessor:
         # Find best/worst scenarios
         report.append("\n### Key Insights")
         
+        # Helper function to get value from nested or flat structure
+        def get_value(data, key, default=0):
+            # Try flat structure first
+            if key in data:
+                return data[key]
+            # Try nested structure (e.g., financial.npv)
+            if 'financial' in data and key in data['financial']:
+                return data['financial'][key]
+            if 'adoption' in data and key in data['adoption']:
+                return data['adoption'][key]
+            return default
+        
         # Best NPV
-        best_npv = max(successful_results, key=lambda x: x.results.get('npv', 0))
-        report.append(f"- **Highest NPV**: {best_npv.scenario_name} (${best_npv.results['npv']:,.0f})")
+        best_npv = max(successful_results, key=lambda x: get_value(x.results, 'npv'))
+        npv_val = get_value(best_npv.results, 'npv')
+        report.append(f"- **Highest NPV**: {best_npv.scenario_name} (${npv_val:,.0f})")
         
         # Best ROI
-        best_roi = max(successful_results, key=lambda x: x.results.get('roi_percent', 0))
-        report.append(f"- **Highest ROI**: {best_roi.scenario_name} ({best_roi.results['roi_percent']:.1f}%)")
+        best_roi = max(successful_results, key=lambda x: get_value(x.results, 'roi', get_value(x.results, 'roi_percent')))
+        roi_val = get_value(best_roi.results, 'roi', get_value(best_roi.results, 'roi_percent'))
+        # Convert ROI to percentage if needed
+        if roi_val < 10:  # Likely a ratio, not percentage
+            roi_val = roi_val * 100
+        report.append(f"- **Highest ROI**: {best_roi.scenario_name} ({roi_val:.1f}%)")
         
         # Fastest breakeven
         scenarios_with_breakeven = [r for r in successful_results 
-                                   if r.results.get('breakeven_month') is not None]
+                                   if get_value(r.results, 'breakeven_month', None) is not None]
         if scenarios_with_breakeven:
             fastest_breakeven = min(scenarios_with_breakeven, 
-                                  key=lambda x: x.results.get('breakeven_month', float('inf')))
+                                  key=lambda x: get_value(x.results, 'breakeven_month', float('inf')))
+            breakeven_val = get_value(fastest_breakeven.results, 'breakeven_month')
             report.append(f"- **Fastest Breakeven**: {fastest_breakeven.scenario_name} "
-                         f"({fastest_breakeven.results['breakeven_month']} months)")
+                         f"({breakeven_val} months)")
+        
+        # Add failed scenarios info if any
+        failed_results = [r for r in self.results if not r.success]
+        if failed_results:
+            report.append("\n### Failed Scenarios")
+            for result in failed_results:
+                report.append(f"- **{result.scenario_name}**: Failed - {result.error_message}")
         
         return "\n".join(report)
     

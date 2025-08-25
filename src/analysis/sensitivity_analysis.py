@@ -1,43 +1,47 @@
 """
-Advanced sensitivity analysis for understanding parameter importance and interactions.
-Implements Sobol indices, partial dependence, and enhanced visualization.
+Sensitivity analysis for AI impact model using SALib.
+Uses Sobol and Morris methods for global sensitivity analysis.
 """
 
 import numpy as np
-from typing import Dict, List, Tuple, Callable, Optional, Any
-from dataclasses import dataclass
 import pandas as pd
-from scipy import stats
-from concurrent.futures import ProcessPoolExecutor, as_completed
 import time
+from typing import Dict, List, Any, Callable, Tuple, Optional
+from dataclasses import dataclass
 
-from ..model.monte_carlo import MonteCarloEngine
+# Import SALib components
+from SALib.sample import saltelli
+from SALib.analyze import sobol
+
 from ..model.distributions import ParameterDistributions, Distribution
-from ..utils.exceptions import CalculationError
-from ..utils.cache import cached_result
-from ..scenarios.scenario_loader import ScenarioLoader
-
-# Convenience function for tests
-def load_scenario(scenario_name: str) -> Dict[str, Any]:
-    """Load a scenario by name."""
-    loader = ScenarioLoader()
-    return loader.load_scenario(scenario_name)
 
 
 @dataclass
 class SensitivityResults:
-    """Container for sensitivity analysis results"""
+    """Results from sensitivity analysis"""
     
-    # First-order Sobol indices (main effects)
+    # First-order indices (main effects)
     first_order_indices: Dict[str, float]
     
-    # Total Sobol indices (including interactions)
+    # Total indices (including interactions)
     total_indices: Dict[str, float]
     
     # Second-order indices (pairwise interactions)
     second_order_indices: Dict[Tuple[str, str], float]
     
-    # Partial dependence data
+    # Confidence intervals
+    first_order_conf: Optional[Dict[str, Tuple[float, float]]]
+    total_conf: Optional[Dict[str, Tuple[float, float]]]
+    
+    # Additional metadata
+    n_samples: int
+    n_params: int
+    
+    # Model evaluation statistics
+    model_outputs_mean: float
+    model_outputs_std: float
+    
+    # Partial dependence data (optional, not computed by default)
     partial_dependence: Dict[str, np.ndarray]
     
     # Parameter ranges tested
@@ -53,8 +57,8 @@ class SensitivityResults:
 
 class SobolAnalyzer:
     """
-    Implements Sobol sensitivity analysis for global sensitivity.
-    Based on Saltelli's improved estimators for computational efficiency.
+    Implements Sobol sensitivity analysis using SALib.
+    Provides a clean interface while leveraging SALib's robust implementation.
     """
     
     def __init__(self, model_func: Callable, parameter_distributions: ParameterDistributions):
@@ -69,66 +73,131 @@ class SobolAnalyzer:
         self.distributions = parameter_distributions
         self.param_names = list(parameter_distributions.distributions.keys())
         self.n_params = len(self.param_names)
+        
+        # Build SALib problem definition
+        self.problem = self._build_problem_definition()
+    
+    def _build_problem_definition(self) -> Dict[str, Any]:
+        """Build SALib problem definition from parameter distributions"""
+        bounds = []
+        
+        for param_name in self.param_names:
+            dist = self.distributions.distributions[param_name]
+            
+            # Extract bounds from distribution
+            if hasattr(dist, 'min_val') and hasattr(dist, 'max_val') and dist.min_val is not None and dist.max_val is not None:
+                # Uniform or bounded distribution
+                bounds.append([dist.min_val, dist.max_val])
+            elif hasattr(dist, 'mean_val') and hasattr(dist, 'std_val'):
+                # Normal distribution - use 3 sigma bounds
+                mean = dist.mean_val
+                std = dist.std_val
+                bounds.append([mean - 3*std, mean + 3*std])
+            elif hasattr(dist, 'lower') and hasattr(dist, 'upper'):
+                # Generic bounded distribution
+                bounds.append([dist.lower, dist.upper])
+            else:
+                # Default bounds for unbounded distributions
+                # Sample to estimate reasonable bounds
+                samples = [dist.sample(1)[0] for _ in range(1000)]
+                lower = np.percentile(samples, 1)
+                upper = np.percentile(samples, 99)
+                bounds.append([lower, upper])
+        
+        return {
+            'num_vars': self.n_params,
+            'names': self.param_names,
+            'bounds': bounds
+        }
     
     def calculate_indices(self, n_samples: int = 1024, 
-                         calc_second_order: bool = True) -> SensitivityResults:
+                         calc_second_order: bool = True,
+                         conf_level: float = 0.95) -> SensitivityResults:
         """
-        Calculate Sobol sensitivity indices.
+        Calculate Sobol sensitivity indices using SALib.
         
         Args:
-            n_samples: Base sample size (total will be n_samples * (2n_params + 2))
+            n_samples: Base sample size for Saltelli sampling
             calc_second_order: Whether to calculate second-order indices
+            conf_level: Confidence level for bootstrap intervals
             
         Returns:
-            SensitivityResults with all indices
+            SensitivityResults with all indices and confidence intervals
         """
         start_time = time.time()
         
-        # Generate sample matrices using Saltelli's scheme
-        A, B, AB_matrices = self._generate_sample_matrices(n_samples)
+        # Generate samples using Saltelli's scheme
+        param_values = saltelli.sample(self.problem, n_samples, 
+                                      calc_second_order=calc_second_order)
         
         # Evaluate model for all sample points
-        Y_A = self._evaluate_model(A)
-        Y_B = self._evaluate_model(B)
-        Y_AB = [self._evaluate_model(AB) for AB in AB_matrices]
+        Y = np.zeros(param_values.shape[0])
+        for i, params in enumerate(param_values):
+            # Convert array to dict for model function
+            param_dict = {name: val for name, val in zip(self.param_names, params)}
+            try:
+                Y[i] = self.model_func(param_dict)
+            except Exception as e:
+                # Handle model failures gracefully
+                Y[i] = np.nan
         
-        # Calculate variance
-        total_variance = np.var(np.concatenate([Y_A, Y_B]))
+        # Remove NaN values
+        valid_mask = ~np.isnan(Y)
+        if not np.any(valid_mask):
+            # All evaluations failed
+            return self._empty_results(start_time)
         
-        # Calculate first-order indices
-        first_order = {}
-        for i, param in enumerate(self.param_names):
-            S_i = self._calculate_first_order_index(Y_A, Y_B, Y_AB[i])
-            first_order[param] = S_i / total_variance if total_variance > 0 else 0
+        Y_valid = Y[valid_mask]
+        param_values_valid = param_values[valid_mask]
         
-        # Calculate total indices
-        total_indices = {}
-        for i, param in enumerate(self.param_names):
-            S_T = self._calculate_total_index(Y_A, Y_B, Y_AB[i])
-            total_indices[param] = S_T / total_variance if total_variance > 0 else 0
+        # Perform Sobol analysis
+        Si = sobol.analyze(self.problem, Y_valid, 
+                          calc_second_order=calc_second_order,
+                          conf_level=conf_level)
         
-        # Calculate second-order indices if requested
+        # Extract results
+        first_order = {name: Si['S1'][i] for i, name in enumerate(self.param_names)}
+        total_indices = {name: Si['ST'][i] for i, name in enumerate(self.param_names)}
+        
+        # Extract confidence intervals if available
+        first_conf = None
+        total_conf = None
+        if 'S1_conf' in Si:
+            first_conf = {name: (Si['S1'][i] - Si['S1_conf'][i], 
+                                Si['S1'][i] + Si['S1_conf'][i]) 
+                         for i, name in enumerate(self.param_names)}
+        if 'ST_conf' in Si:
+            total_conf = {name: (Si['ST'][i] - Si['ST_conf'][i],
+                                Si['ST'][i] + Si['ST_conf'][i])
+                         for i, name in enumerate(self.param_names)}
+        
+        # Extract second-order indices if calculated
         second_order = {}
-        if calc_second_order:
+        if calc_second_order and 'S2' in Si:
+            idx = 0
             for i in range(self.n_params):
                 for j in range(i + 1, self.n_params):
-                    param_i = self.param_names[i]
-                    param_j = self.param_names[j]
-                    S_ij = self._calculate_second_order_index(i, j, Y_A, Y_B, Y_AB)
-                    S_ij_normalized = S_ij / total_variance if total_variance > 0 else 0
-                    # Subtract first-order effects to get pure interaction
-                    S_ij_interaction = S_ij_normalized - first_order[param_i] - first_order[param_j]
-                    second_order[(param_i, param_j)] = max(0, S_ij_interaction)
+                    second_order[(self.param_names[i], self.param_names[j])] = Si['S2'][i, j]
         
-        # Calculate partial dependence
-        partial_dependence = self._calculate_partial_dependence(n_points=20)
+        # Calculate convergence and variance explained
+        # Convergence: check if confidence intervals are reasonably tight
+        convergence_achieved = True
+        if first_conf:
+            for name in self.param_names:
+                conf_width = first_conf[name][1] - first_conf[name][0]
+                if conf_width > 0.1:  # If confidence interval > 0.1, not converged
+                    convergence_achieved = False
+                    break
+        
+        # Variance explained by first-order indices
+        variance_explained = sum(first_order.values())
         
         # Get parameter ranges
-        parameter_ranges = self._get_parameter_ranges()
+        parameter_ranges = {name: tuple(bounds) 
+                          for name, bounds in zip(self.param_names, self.problem['bounds'])}
         
-        # Check convergence
-        variance_explained = sum(first_order.values())
-        convergence_achieved = variance_explained > 0.7  # 70% variance explained
+        # Calculate partial dependence (empty for now, can be added if needed)
+        partial_dependence = {}
         
         computation_time = time.time() - start_time
         
@@ -136,6 +205,12 @@ class SobolAnalyzer:
             first_order_indices=first_order,
             total_indices=total_indices,
             second_order_indices=second_order,
+            first_order_conf=first_conf,
+            total_conf=total_conf,
+            n_samples=n_samples,
+            n_params=self.n_params,
+            model_outputs_mean=float(np.mean(Y_valid)),
+            model_outputs_std=float(np.std(Y_valid)),
             partial_dependence=partial_dependence,
             parameter_ranges=parameter_ranges,
             convergence_achieved=convergence_achieved,
@@ -143,279 +218,142 @@ class SobolAnalyzer:
             computation_time=computation_time
         )
     
-    def _generate_sample_matrices(self, n_samples: int) -> Tuple[np.ndarray, np.ndarray, List[np.ndarray]]:
-        """Generate sample matrices using Saltelli's scheme"""
-        # Generate two independent sample matrices
-        A = np.zeros((n_samples, self.n_params))
-        B = np.zeros((n_samples, self.n_params))
-        
-        # Sample from distributions
-        for i, param in enumerate(self.param_names):
-            dist = self.distributions.distributions[param]
-            A[:, i] = dist.sample(n_samples)
-            B[:, i] = dist.sample(n_samples)
-        
-        # Create AB matrices (A with column i from B)
-        AB_matrices = []
-        for i in range(self.n_params):
-            AB = A.copy()
-            AB[:, i] = B[:, i]
-            AB_matrices.append(AB)
-        
-        return A, B, AB_matrices
-    
-    def _evaluate_model(self, samples: np.ndarray) -> np.ndarray:
-        """Evaluate model for sample matrix"""
-        n_samples = samples.shape[0]
-        results = np.zeros(n_samples)
-        
-        for i in range(n_samples):
-            # Create parameter dictionary
-            params = {self.param_names[j]: samples[i, j] 
-                     for j in range(self.n_params)}
-            
-            try:
-                results[i] = self.model_func(params)
-            except Exception as e:
-                # Use mean if evaluation fails
-                results[i] = np.nan
-        
-        # Replace NaN values with mean
-        nan_mask = np.isnan(results)
-        if np.any(nan_mask):
-            results[nan_mask] = np.nanmean(results)
-        
-        return results
-    
-    def _calculate_first_order_index(self, Y_A: np.ndarray, Y_B: np.ndarray, 
-                                    Y_AB_i: np.ndarray) -> float:
-        """Calculate first-order Sobol index using Saltelli estimator"""
-        return np.mean(Y_B * (Y_AB_i - Y_A))
-    
-    def _calculate_total_index(self, Y_A: np.ndarray, Y_B: np.ndarray, 
-                               Y_AB_i: np.ndarray) -> float:
-        """Calculate total Sobol index"""
-        return 0.5 * np.mean((Y_A - Y_AB_i) ** 2)
-    
-    def _calculate_second_order_index(self, i: int, j: int, Y_A: np.ndarray, 
-                                     Y_B: np.ndarray, Y_AB: List[np.ndarray]) -> float:
-        """Calculate second-order interaction index"""
-        # This is a simplified approach; full implementation would require additional samples
-        return np.mean(Y_AB[i] * Y_AB[j]) - np.mean(Y_A) * np.mean(Y_B)
-    
-    def _calculate_partial_dependence(self, n_points: int = 20) -> Dict[str, np.ndarray]:
-        """Calculate partial dependence for each parameter"""
-        partial_dep = {}
-        
-        for param in self.param_names:
-            # Get parameter range
-            dist = self.distributions.distributions[param]
-            if hasattr(dist, 'lower') and hasattr(dist, 'upper'):
-                param_range = np.linspace(dist.lower, dist.upper, n_points)
-            else:
-                # Use percentiles for unbounded distributions
-                samples = dist.sample(1000)
-                param_range = np.linspace(np.percentile(samples, 5), 
-                                        np.percentile(samples, 95), n_points)
-            
-            # Calculate average model output for each parameter value
-            pd_values = np.zeros(n_points)
-            for i, value in enumerate(param_range):
-                # Fix parameter at value, sample others
-                fixed_params = self._sample_other_parameters(param, value, n_samples=100)
-                outputs = [self.model_func(params) for params in fixed_params]
-                pd_values[i] = np.mean(outputs)
-            
-            partial_dep[param] = pd_values
-        
-        return partial_dep
-    
-    def _sample_other_parameters(self, fixed_param: str, fixed_value: float, 
-                                n_samples: int) -> List[Dict[str, float]]:
-        """Sample all parameters except one that is fixed"""
-        samples = []
-        
-        for _ in range(n_samples):
-            params = {}
-            for param in self.param_names:
-                if param == fixed_param:
-                    params[param] = fixed_value
-                else:
-                    dist = self.distributions.distributions[param]
-                    params[param] = dist.sample(1)[0]
-            samples.append(params)
-        
-        return samples
-    
-    def _get_parameter_ranges(self) -> Dict[str, Tuple[float, float]]:
-        """Get min/max range for each parameter"""
-        ranges = {}
-        
-        for param in self.param_names:
-            dist = self.distributions.distributions[param]
-            if hasattr(dist, 'lower') and hasattr(dist, 'upper'):
-                ranges[param] = (dist.lower, dist.upper)
-            else:
-                # Use percentiles for unbounded distributions
-                samples = dist.sample(1000)
-                ranges[param] = (np.percentile(samples, 1), np.percentile(samples, 99))
-        
-        return ranges
+    def _empty_results(self, start_time: float) -> SensitivityResults:
+        """Return empty results when all model evaluations fail"""
+        empty_dict = {name: 0.0 for name in self.param_names}
+        return SensitivityResults(
+            first_order_indices=empty_dict,
+            total_indices=empty_dict,
+            second_order_indices={},
+            first_order_conf=None,
+            total_conf=None,
+            n_samples=0,
+            n_params=self.n_params,
+            model_outputs_mean=0.0,
+            model_outputs_std=0.0,
+            partial_dependence={},
+            parameter_ranges={name: (0.0, 0.0) for name in self.param_names},
+            convergence_achieved=False,
+            variance_explained=0.0,
+            computation_time=time.time() - start_time
+        )
 
 
-class LocalSensitivityAnalyzer:
+def format_sensitivity_report(results: SensitivityResults) -> str:
     """
-    Performs local sensitivity analysis around a baseline point.
-    Useful for understanding parameter importance at specific scenarios.
-    """
-    
-    def __init__(self, model_func: Callable, baseline_params: Dict[str, float]):
-        """
-        Initialize local sensitivity analyzer.
-        
-        Args:
-            model_func: Function that takes parameter dict and returns scalar
-            baseline_params: Baseline parameter values
-        """
-        self.model_func = model_func
-        self.baseline_params = baseline_params
-        self.baseline_output = model_func(baseline_params)
-    
-    def calculate_elasticities(self, perturbation: float = 0.01) -> Dict[str, float]:
-        """
-        Calculate elasticities (percentage change in output per percentage change in input).
-        
-        Args:
-            perturbation: Fraction to perturb parameters (e.g., 0.01 = 1%)
-            
-        Returns:
-            Dictionary of elasticities for each parameter
-        """
-        elasticities = {}
-        
-        for param, base_value in self.baseline_params.items():
-            # Perturb parameter
-            perturbed_params = self.baseline_params.copy()
-            perturbed_value = base_value * (1 + perturbation)
-            perturbed_params[param] = perturbed_value
-            
-            # Calculate output change
-            try:
-                perturbed_output = self.model_func(perturbed_params)
-                
-                # Calculate elasticity
-                output_change = (perturbed_output - self.baseline_output) / self.baseline_output
-                input_change = perturbation
-                
-                elasticity = output_change / input_change if input_change != 0 else 0
-                elasticities[param] = elasticity
-                
-            except Exception:
-                elasticities[param] = 0.0
-        
-        return elasticities
-    
-    def calculate_gradients(self, epsilon: float = 1e-6) -> Dict[str, float]:
-        """
-        Calculate numerical gradients using finite differences.
-        
-        Args:
-            epsilon: Small value for numerical differentiation
-            
-        Returns:
-            Dictionary of gradients for each parameter
-        """
-        gradients = {}
-        
-        for param, base_value in self.baseline_params.items():
-            # Forward difference
-            forward_params = self.baseline_params.copy()
-            forward_params[param] = base_value + epsilon
-            
-            try:
-                forward_output = self.model_func(forward_params)
-                gradient = (forward_output - self.baseline_output) / epsilon
-                gradients[param] = gradient
-            except Exception:
-                gradients[param] = 0.0
-        
-        return gradients
-
-
-def create_sensitivity_report(results: SensitivityResults) -> str:
-    """
-    Create a formatted sensitivity analysis report.
+    Format sensitivity analysis results as a readable report.
     
     Args:
-        results: Sensitivity analysis results
+        results: SensitivityResults from analysis
         
     Returns:
-        Formatted markdown report
+        Formatted string report
     """
     report = []
-    report.append("# Sensitivity Analysis Report\n")
-    report.append(f"**Analysis completed in {results.computation_time:.2f} seconds**\n")
-    report.append(f"**Variance explained: {results.variance_explained:.1%}**\n")
-    report.append(f"**Convergence achieved: {'Yes' if results.convergence_achieved else 'No'}**\n")
+    report.append("=" * 60)
+    report.append("SENSITIVITY ANALYSIS REPORT")
+    report.append("=" * 60)
     
-    # First-order indices (main effects)
-    report.append("\n## Main Effects (First-Order Sobol Indices)\n")
-    report.append("| Parameter | Sensitivity Index | Importance |")
-    report.append("|-----------|------------------|------------|")
+    # Summary statistics
+    report.append(f"\nAnalysis Summary:")
+    report.append(f"  Parameters analyzed: {results.n_params}")
+    report.append(f"  Sample size: {results.n_samples}")
+    report.append(f"  Computation time: {results.computation_time:.2f} seconds")
+    report.append(f"  Model output mean: {results.model_outputs_mean:.4f}")
+    report.append(f"  Model output std: {results.model_outputs_std:.4f}")
+    report.append(f"  Variance explained (first-order): {results.variance_explained:.1%}")
+    report.append(f"  Convergence achieved: {results.convergence_achieved}")
+    
+    # First-order indices (sorted by importance)
+    report.append("\n" + "-" * 40)
+    report.append("FIRST-ORDER SENSITIVITY INDICES")
+    report.append("(Direct parameter influence)")
+    report.append("-" * 40)
     
     sorted_first = sorted(results.first_order_indices.items(), 
-                         key=lambda x: x[1], reverse=True)
+                         key=lambda x: abs(x[1]), reverse=True)
     
-    for param, index in sorted_first[:10]:  # Top 10
-        importance = "🔴 High" if index > 0.1 else "🟡 Medium" if index > 0.01 else "🟢 Low"
-        report.append(f"| {param:<30} | {index:>6.3f} | {importance} |")
+    for param, value in sorted_first:
+        conf_str = ""
+        if results.first_order_conf and param in results.first_order_conf:
+            conf = results.first_order_conf[param]
+            conf_str = f" [{conf[0]:.3f}, {conf[1]:.3f}]"
+        report.append(f"  {param:20s}: {value:7.4f}{conf_str}")
     
-    # Total indices (including interactions)
-    report.append("\n## Total Effects (Including Interactions)\n")
-    report.append("| Parameter | Total Index | Interaction Strength |")
-    report.append("|-----------|-------------|---------------------|")
+    # Total indices
+    report.append("\n" + "-" * 40)
+    report.append("TOTAL SENSITIVITY INDICES")
+    report.append("(Including interaction effects)")
+    report.append("-" * 40)
     
-    for param, total in sorted(results.total_indices.items(), 
-                               key=lambda x: x[1], reverse=True)[:10]:
-        first = results.first_order_indices.get(param, 0)
-        interaction = total - first
-        strength = "Strong" if interaction > 0.05 else "Moderate" if interaction > 0.01 else "Weak"
-        report.append(f"| {param:<30} | {total:>6.3f} | {strength} ({interaction:.3f}) |")
+    sorted_total = sorted(results.total_indices.items(),
+                         key=lambda x: abs(x[1]), reverse=True)
     
-    # Important interactions
+    for param, value in sorted_total:
+        conf_str = ""
+        if results.total_conf and param in results.total_conf:
+            conf = results.total_conf[param]
+            conf_str = f" [{conf[0]:.3f}, {conf[1]:.3f}]"
+        report.append(f"  {param:20s}: {value:7.4f}{conf_str}")
+    
+    # Interaction effects (difference between total and first-order)
+    report.append("\n" + "-" * 40)
+    report.append("INTERACTION EFFECTS")
+    report.append("(Total - First Order)")
+    report.append("-" * 40)
+    
+    interactions = {}
+    for param in results.first_order_indices:
+        interactions[param] = results.total_indices[param] - results.first_order_indices[param]
+    
+    sorted_interactions = sorted(interactions.items(),
+                                key=lambda x: abs(x[1]), reverse=True)
+    
+    for param, value in sorted_interactions[:10]:
+        report.append(f"  {param:20s}: {value:7.4f}")
+    
+    # Second-order indices if available
     if results.second_order_indices:
-        report.append("\n## Important Parameter Interactions\n")
-        report.append("| Parameter 1 | Parameter 2 | Interaction Index |")
-        report.append("|-------------|-------------|-------------------|")
+        report.append("\n" + "-" * 40)
+        report.append("TOP PAIRWISE INTERACTIONS")
+        report.append("-" * 40)
         
-        sorted_interactions = sorted(results.second_order_indices.items(), 
-                                   key=lambda x: x[1], reverse=True)
+        sorted_second = sorted(results.second_order_indices.items(),
+                              key=lambda x: abs(x[1]), reverse=True)
         
-        for (param1, param2), index in sorted_interactions[:5]:  # Top 5
-            if index > 0.001:  # Only show meaningful interactions
-                report.append(f"| {param1:<20} | {param2:<20} | {index:>6.4f} |")
+        for (param1, param2), value in sorted_second[:10]:
+            if abs(value) > 0.01:  # Only show significant interactions
+                report.append(f"  {param1} × {param2}: {value:.4f}")
+    
+    report.append("\n" + "=" * 60)
     
     return "\n".join(report)
 
 
-@cached_result(ttl_seconds=7200)  # Cache for 2 hours
-def perform_sensitivity_analysis(scenario_name: str, model_func: Callable,
-                                parameter_distributions: ParameterDistributions,
-                                n_samples: int = 512) -> SensitivityResults:
+def run_sobol_analysis(model_func: Callable,
+                       parameter_distributions: ParameterDistributions,
+                       n_samples: int = 1024,
+                       calc_second_order: bool = True) -> SensitivityResults:
     """
-    Perform comprehensive sensitivity analysis for a scenario.
+    Convenience function to run Sobol sensitivity analysis.
     
     Args:
-        scenario_name: Name of scenario for caching
-        model_func: Function to analyze
+        model_func: Function mapping parameters to output
         parameter_distributions: Parameter distributions
-        n_samples: Number of samples for Sobol analysis
+        n_samples: Number of samples for analysis
+        calc_second_order: Whether to calculate second-order indices
         
     Returns:
-        Complete sensitivity analysis results
+        SensitivityResults with indices and statistics
     """
     analyzer = SobolAnalyzer(model_func, parameter_distributions)
-    return analyzer.calculate_indices(n_samples, calc_second_order=True)
+    return analyzer.calculate_indices(n_samples, calc_second_order=calc_second_order)
+
+
+# Aliases for backward compatibility
+create_sensitivity_report = format_sensitivity_report
+perform_sensitivity_analysis = run_sobol_analysis
+
 
 def run_sensitivity_analysis(scenario_name: str, n_samples: int = 512) -> Dict[str, Any]:
     """
@@ -451,9 +389,23 @@ def run_sensitivity_analysis(scenario_name: str, n_samples: int = 512) -> Dict[s
     from ..model.distributions import Uniform
     param_distributions = ParameterDistributions()
     for param_name, base_value in base_params.items():
+        # Handle negative values correctly
+        if base_value >= 0:
+            min_val = base_value * 0.7
+            max_val = base_value * 1.3
+        else:
+            # For negative values, reverse the order
+            min_val = base_value * 1.3
+            max_val = base_value * 0.7
+        
+        # Handle zero values
+        if abs(base_value) < 0.001:
+            min_val = -0.1
+            max_val = 0.1
+            
         param_distributions.add_distribution(
             param_name,
-            Uniform(min_val=base_value * 0.7, max_val=base_value * 1.3)
+            Uniform(min_val=min_val, max_val=max_val)
         )
     
     # Define model function for sensitivity analysis
@@ -463,41 +415,28 @@ def run_sensitivity_analysis(scenario_name: str, n_samples: int = 512) -> Dict[s
         
         # Override scenario parameters
         modified_config = scenario_config.copy()
-        modified_config['adoption']['early_adopters'] = params.get('adoption_rate', base_params['adoption_rate'])
-        modified_config['impact']['feature_cycle_reduction'] = params.get('feature_cycle_reduction', base_params['feature_cycle_reduction'])
-        modified_config['impact']['defect_reduction'] = params.get('defect_reduction', base_params['defect_reduction'])
-        modified_config['costs']['cost_per_seat_month'] = params.get('cost_per_seat', base_params['cost_per_seat'])
-        modified_config['costs']['token_price_per_million'] = params.get('token_price', base_params['token_price'])
+        modified_config.setdefault('adoption', {})['early_adopters'] = params['adoption_rate']
+        modified_config.setdefault('impact', {})['feature_cycle_reduction'] = params['feature_cycle_reduction']
+        modified_config.setdefault('impact', {})['defect_reduction'] = params['defect_reduction']
+        modified_config.setdefault('costs', {})['cost_per_seat_month'] = params['cost_per_seat']
+        modified_config.setdefault('costs', {})['token_price_per_million'] = params['token_price']
         
-        # Run scenario with base configuration (simplified approach)
-        # Note: This is a simplified sensitivity analysis that varies key parameters
-        # around their base values. For full sensitivity, we'd need to modify the scenario
-        # configuration dynamically, which would require extending the model API.
+        # Run analysis
         try:
-            results = model._run_scenario_cached(scenario_name)
-            base_npv = results['financial']['npv']
-            
-            # Apply parameter modifications as multipliers
-            npv = base_npv
-            
-            # Simple linear approximation of parameter effects
-            adoption_effect = (params.get('adoption_rate', base_params['adoption_rate']) / base_params['adoption_rate'] - 1) * 0.3
-            cycle_effect = (params.get('feature_cycle_reduction', base_params['feature_cycle_reduction']) / base_params['feature_cycle_reduction'] - 1) * 0.4
-            defect_effect = (params.get('defect_reduction', base_params['defect_reduction']) / base_params['defect_reduction'] - 1) * 0.2
-            cost_effect = -(params.get('cost_per_seat', base_params['cost_per_seat']) / base_params['cost_per_seat'] - 1) * 0.15
-            token_effect = -(params.get('token_price', base_params['token_price']) / base_params['token_price'] - 1) * 0.1
-            
-            npv *= (1 + adoption_effect + cycle_effect + defect_effect + cost_effect + token_effect)
-            
-            return npv
+            results = model._run_scenario_cached(scenario_name, custom_config=modified_config)
+            return results.get('npv', 0)
         except Exception:
-            return 0.0
+            return 0
     
     # Run sensitivity analysis
-    analyzer = SobolAnalyzer(model_function, param_distributions)
-    sensitivity_results = analyzer.calculate_indices(n_samples=n_samples)
+    sensitivity_results = run_sobol_analysis(
+        model_function,
+        param_distributions,
+        n_samples=n_samples,
+        calc_second_order=True
+    )
     
-    # Format results for batch processor
+    # Format results for batch processing
     ranked_params = sorted(
         sensitivity_results.first_order_indices.items(),
         key=lambda x: x[1],
@@ -506,10 +445,8 @@ def run_sensitivity_analysis(scenario_name: str, n_samples: int = 512) -> Dict[s
     
     return {
         'ranked_parameters': [
-            {'name': name, 'importance': float(importance)}
-            for name, importance in ranked_params
+            {'name': param, 'importance': float(value)}
+            for param, value in ranked_params
         ],
-        'variance_explained': sensitivity_results.variance_explained,
-        'convergence_achieved': sensitivity_results.convergence_achieved,
-        'computation_time': sensitivity_results.computation_time
+        'variance_explained': sensitivity_results.variance_explained
     }

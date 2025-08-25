@@ -359,13 +359,12 @@ class TestSimulateAdoptionMonteCarlo:
     def base_parameters(self):
         return create_adoption_scenario("organic")
     
-    @pytest.mark.skip(reason="Monte Carlo tests involve random variations")
     def test_monte_carlo_structure(self, base_parameters):
         """Test Monte Carlo simulation structure"""
         n_simulations = 100
         months = 12
         
-        results = simulate_adoption_monte_carlo(base_parameters, n_simulations, months)
+        results = simulate_adoption_monte_carlo(base_parameters, n_simulations, months, random_seed=42)
         
         required_keys = ["mean", "std", "p10", "p50", "p90"]
         for key in required_keys:
@@ -373,13 +372,12 @@ class TestSimulateAdoptionMonteCarlo:
             assert isinstance(results[key], np.ndarray)
             assert len(results[key]) == months
         
-    @pytest.mark.skip(reason="Monte Carlo tests involve random variations")
     def test_monte_carlo_statistics(self, base_parameters):
         """Test Monte Carlo simulation statistics"""
         n_simulations = 100
         months = 12
         
-        results = simulate_adoption_monte_carlo(base_parameters, n_simulations, months)
+        results = simulate_adoption_monte_carlo(base_parameters, n_simulations, months, random_seed=42)
         
         # Standard deviation should be positive (indicating variance)
         assert all(std >= 0 for std in results["std"])
@@ -392,13 +390,12 @@ class TestSimulateAdoptionMonteCarlo:
         for month in range(months):
             assert results["p10"][month] <= results["mean"][month] <= results["p90"][month]
         
-    @pytest.mark.skip(reason="Monte Carlo tests involve random variations")
     def test_monte_carlo_small_sample(self, base_parameters):
         """Test Monte Carlo with small sample size"""
         n_simulations = 10  # Small sample
         months = 6
         
-        results = simulate_adoption_monte_carlo(base_parameters, n_simulations, months)
+        results = simulate_adoption_monte_carlo(base_parameters, n_simulations, months, random_seed=42)
         
         # Should still work with small sample
         assert len(results["mean"]) == months

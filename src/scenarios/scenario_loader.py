@@ -61,56 +61,89 @@ class ScenarioLoader:
         # Load profiles
         profiles_dir = self.scenarios_path / "profiles"
         if profiles_dir.exists():
-            for file in profiles_dir.glob("*.yaml"):
-                try:
-                    with open(file, 'r') as f:
-                        profile = yaml.safe_load(f)
-                        self._profiles[file.stem] = profile
-                except yaml.YAMLError as e:
-                    raise ConfigurationError(
-                        f"Invalid YAML format in profile {file}",
-                        config_file=str(file),
-                        resolution_steps=[
-                            "Check YAML syntax in the profile file",
-                            f"Error: {str(e)}"
-                        ]
-                    )
+            try:
+                for file in profiles_dir.glob("*.yaml"):
+                    try:
+                        with open(file, 'r') as f:
+                            profile = yaml.safe_load(f)
+                            self._profiles[file.stem] = profile
+                    except yaml.YAMLError as e:
+                        raise ConfigurationError(
+                            f"Invalid YAML format in profile {file}",
+                            config_file=str(file),
+                            resolution_steps=[
+                                "Check YAML syntax in the profile file",
+                                f"Error: {str(e)}"
+                            ]
+                        )
+            except PermissionError as e:
+                raise ConfigurationError(
+                    f"Permission denied accessing profiles directory: {profiles_dir}",
+                    config_file=str(profiles_dir),
+                    resolution_steps=[
+                        f"Check directory permissions: ls -la {profiles_dir}",
+                        f"Fix permissions: chmod 755 {profiles_dir}",
+                        "Ensure you have read access to the directory"
+                    ]
+                )
         
         # Load strategies
         strategies_dir = self.scenarios_path / "strategies"
         if strategies_dir.exists():
-            for file in strategies_dir.glob("*.yaml"):
-                try:
-                    with open(file, 'r') as f:
-                        strategy = yaml.safe_load(f)
-                        self._strategies[file.stem] = strategy
-                except yaml.YAMLError as e:
-                    raise ConfigurationError(
-                        f"Invalid YAML format in strategy {file}",
-                        config_file=str(file),
-                        resolution_steps=[
-                            "Check YAML syntax in the strategy file",
-                            f"Error: {str(e)}"
-                        ]
-                    )
+            try:
+                for file in strategies_dir.glob("*.yaml"):
+                    try:
+                        with open(file, 'r') as f:
+                            strategy = yaml.safe_load(f)
+                            self._strategies[file.stem] = strategy
+                    except yaml.YAMLError as e:
+                        raise ConfigurationError(
+                            f"Invalid YAML format in strategy {file}",
+                            config_file=str(file),
+                            resolution_steps=[
+                                "Check YAML syntax in the strategy file",
+                                f"Error: {str(e)}"
+                            ]
+                        )
+            except PermissionError as e:
+                raise ConfigurationError(
+                    f"Permission denied accessing strategies directory: {strategies_dir}",
+                    config_file=str(strategies_dir),
+                    resolution_steps=[
+                        f"Check directory permissions: ls -la {strategies_dir}",
+                        f"Fix permissions: chmod 755 {strategies_dir}",
+                        "Ensure you have read access to the directory"
+                    ]
+                )
         
         # Load distributions
         distributions_dir = self.scenarios_path / "distributions"
         if distributions_dir.exists():
-            for file in distributions_dir.glob("*.yaml"):
-                try:
-                    with open(file, 'r') as f:
-                        dist = yaml.safe_load(f)
-                        self._distributions[file.stem] = dist
-                except yaml.YAMLError as e:
-                    raise ConfigurationError(
-                        f"Invalid YAML format in distribution {file}",
-                        config_file=str(file),
-                        resolution_steps=[
-                            "Check YAML syntax in the distribution file",
-                            f"Error: {str(e)}"
-                        ]
-                    )
+            try:
+                for file in distributions_dir.glob("*.yaml"):
+                    try:
+                        with open(file, 'r') as f:
+                            dist = yaml.safe_load(f)
+                            self._distributions[file.stem] = dist
+                    except yaml.YAMLError as e:
+                        raise ConfigurationError(
+                            f"Invalid YAML format in distribution {file}",
+                            config_file=str(file),
+                            resolution_steps=[
+                                "Check YAML syntax in the distribution file",
+                                f"Error: {str(e)}"
+                            ]
+                        )
+            except PermissionError as e:
+                raise ConfigurationError(
+                    f"Permission denied accessing distributions directory: {distributions_dir}",
+                    config_file=str(distributions_dir),
+                    resolution_steps=[
+                        f"Check directory permissions: ls -la {distributions_dir}",
+                        f"Fix permissions: chmod 755 {distributions_dir}",
+                        "Ensure you have read access to the directory"
+                    ]
+                )
     
     def _load_modular_scenarios(self) -> Dict[str, Any]:
         """Load all scenarios from modular directory structure."""

@@ -60,6 +60,9 @@ class AIImpactModel:
             loader = ScenarioLoader(scenario_dir)
             self.scenarios = loader.load_all_scenarios()
             self.loader = loader
+        except ConfigurationError as e:
+            # Re-raise ConfigurationError as-is (includes permission errors from ScenarioLoader)
+            raise e
         except (ImportError, PermissionError) as e:
             if isinstance(e, PermissionError):
                 raise ConfigurationError(

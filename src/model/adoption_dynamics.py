@@ -321,20 +321,38 @@ def create_adoption_scenario(scenario_or_params = "organic") -> AdoptionParamete
 def simulate_adoption_monte_carlo(
     base_params: AdoptionParameters,
     n_simulations: int = 1000,
-    months: int = 24
+    months: int = 24,
+    random_seed: Optional[int] = None
 ) -> Dict[str, np.ndarray]:
     """Run Monte Carlo simulation of adoption with uncertainty"""
+    
+    if random_seed is not None:
+        np.random.seed(random_seed)
     
     results = []
     
     for _ in range(n_simulations):
         # Add random variation to parameters
+        initial_adopters = base_params.initial_adopters * np.random.uniform(0.8, 1.2)
+        early_adopters = base_params.early_adopters * np.random.uniform(0.8, 1.2)
+        early_majority = base_params.early_majority * np.random.uniform(0.9, 1.1)
+        late_majority = base_params.late_majority * np.random.uniform(0.9, 1.1)
+        laggards = base_params.laggards  # Keep laggards fixed
+        
+        # Normalize adoption segments to sum to 1 BEFORE creating params
+        total = initial_adopters + early_adopters + early_majority + late_majority + laggards
+        initial_adopters /= total
+        early_adopters /= total
+        early_majority /= total
+        late_majority /= total
+        laggards /= total
+        
         params = AdoptionParameters(
-            initial_adopters=base_params.initial_adopters * np.random.uniform(0.8, 1.2),
-            early_adopters=base_params.early_adopters * np.random.uniform(0.8, 1.2),
-            early_majority=base_params.early_majority * np.random.uniform(0.9, 1.1),
-            late_majority=base_params.late_majority * np.random.uniform(0.9, 1.1),
-            laggards=base_params.laggards,  # Keep laggards fixed
+            initial_adopters=initial_adopters,
+            early_adopters=early_adopters,
+            early_majority=early_majority,
+            late_majority=late_majority,
+            laggards=laggards,
             training_effectiveness=base_params.training_effectiveness * np.random.uniform(0.7, 1.3),
             peer_influence=base_params.peer_influence * np.random.uniform(0.8, 1.2),
             management_mandate=base_params.management_mandate,
@@ -348,15 +366,6 @@ def simulate_adoption_monte_carlo(
             mid_adoption_multiplier=base_params.mid_adoption_multiplier,
             senior_adoption_multiplier=base_params.senior_adoption_multiplier
         )
-        
-        # Normalize adoption segments to sum to 1
-        total = (params.initial_adopters + params.early_adopters + 
-                params.early_majority + params.late_majority + params.laggards)
-        params.initial_adopters /= total
-        params.early_adopters /= total
-        params.early_majority /= total
-        params.late_majority /= total
-        params.laggards /= total
         
         model = AdoptionModel(params)
         adoption = model.calculate_effective_adoption(months)
