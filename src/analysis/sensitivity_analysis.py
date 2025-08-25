@@ -15,6 +15,13 @@ from ..model.monte_carlo import MonteCarloEngine
 from ..model.distributions import ParameterDistributions, Distribution
 from ..utils.exceptions import CalculationError
 from ..utils.cache import cached_result
+from ..scenarios.scenario_loader import ScenarioLoader
+
+# Convenience function for tests
+def load_scenario(scenario_name: str) -> Dict[str, Any]:
+    """Load a scenario by name."""
+    loader = ScenarioLoader()
+    return loader.load_scenario(scenario_name)
 
 
 @dataclass
@@ -425,10 +432,11 @@ def run_sensitivity_analysis(scenario_name: str, n_samples: int = 512) -> Dict[s
         Dictionary with ranked parameters and variance explained
     """
     from main import AIImpactModel
-    from ..scenarios.scenario_loader import load_scenario
+    from ..scenarios.scenario_loader import ScenarioLoader
     
     # Load scenario configuration
-    scenario_config = load_scenario(scenario_name)
+    loader = ScenarioLoader()
+    scenario_config = loader.load_scenario(scenario_name)
     
     # Add key parameters with reasonable variation ranges
     base_params = {
