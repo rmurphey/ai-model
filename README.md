@@ -143,7 +143,35 @@ Strategic Value:         $543,210 (15%)
 
 
 
+## Testing
 
+The project includes comprehensive test coverage with unit and integration tests. Test scenarios are available for development and testing:
+
+### Test Scenarios
+
+Located in `src/scenarios/`:
+- **test_scenario.yaml** - Basic test scenario with full parameter set
+- **mc_scenario.yaml** - Monte Carlo test scenario with probability distributions
+- **sens_scenario.yaml** - Sensitivity analysis test scenario
+- **bad_scenario.yaml** - Invalid scenario for error handling tests
+- **scenario1.yaml**, **scenario2.yaml** - Simple scenarios for parallel processing tests
+
+### Running Tests
+
+```bash
+# Run all tests
+python -m pytest
+
+# Run with coverage
+python -m pytest --cov=src --cov-report=html
+
+# Run specific test modules
+python -m pytest tests/test_batch_processor_advanced.py
+python -m pytest tests/test_sensitivity_analysis_advanced.py
+
+# Run integration tests (previously skipped, now fixed)
+python -m pytest -k "integration"
+```
 
 ## Contributing
 
