@@ -12,8 +12,8 @@ from scipy import stats
 from copulas.multivariate import GaussianMultivariate
 from copulas.univariate import GaussianKDE, Univariate
 
-# Import existing distribution classes from the old file
-from .distributions_old import (
+# Import existing distribution classes
+from .distributions import (
     Distribution, Normal, Triangular, Beta, Uniform, 
     LogNormal, Deterministic, create_distribution_from_config
 )
@@ -38,18 +38,11 @@ class EnhancedParameterDistributions:
         
     def add_correlation(self, param1: str, param2: str, correlation: float):
         """Add correlation between two parameters"""
-        from ..utils.exceptions import ValidationError
-        
         if param1 not in self.distributions or param2 not in self.distributions:
             raise ValueError(f"Both parameters must have distributions defined")
         
         if not -1 <= correlation <= 1:
-            raise ValidationError(
-                "correlation",
-                correlation,
-                "between -1 and 1",
-                f"Correlation must be between -1 and 1"
-            )
+            raise ValueError(f"Correlation must be between -1 and 1, got {correlation}")
         
         # Store both directions for easy lookup
         self.correlations[(param1, param2)] = correlation
