@@ -113,7 +113,6 @@ class TestSobolAnalyzer:
         
         np.testing.assert_array_almost_equal(results, expected)
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
     def test_calculate_indices_internals(self, simple_model, simple_distributions):
         """Test Sobol indices calculation process"""
         analyzer = SobolAnalyzer(simple_model, simple_distributions)
@@ -132,7 +131,6 @@ class TestSobolAnalyzer:
             assert -1 <= results.first_order_indices[key] <= 1
             assert -1 <= results.total_indices[key] <= 1
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
     def test_calculate_indices_basic(self, simple_model, simple_distributions):
         """Test full indices calculation"""
         analyzer = SobolAnalyzer(simple_model, simple_distributions)
@@ -157,7 +155,6 @@ class TestSobolAnalyzer:
         assert len(results.second_order_indices) > 0
         assert ("param1", "param2") in results.second_order_indices
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
     def test_convergence_via_calculate(self, simple_model, simple_distributions):
         """Test convergence via the calculate_indices method"""
         analyzer = SobolAnalyzer(simple_model, simple_distributions)
@@ -198,10 +195,9 @@ class TestSensitivityAnalysisFunctions:
             assert isinstance(results, SensitivityResults)
             assert "x" in results.first_order_indices
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
-    @patch('src.analysis.sensitivity_analysis.load_scenario')
+    @patch('src.analysis.sensitivity_analysis.ScenarioLoader')
     @patch('main.AIImpactModel')
-    def test_run_sensitivity_analysis(self, mock_model_class, mock_load_scenario):
+    def test_run_sensitivity_analysis(self, mock_model_class, mock_loader_class):
         """Test run_sensitivity_analysis convenience function"""
         # Mock scenario config
         mock_config = {
@@ -215,7 +211,10 @@ class TestSensitivityAnalysisFunctions:
                 'token_price_per_million': 8
             }
         }
-        mock_load_scenario.return_value = mock_config
+        # Mock ScenarioLoader
+        mock_loader = Mock()
+        mock_loader.load_scenario.return_value = mock_config
+        mock_loader_class.return_value = mock_loader
         
         # Mock model instance
         mock_model = Mock()
@@ -239,11 +238,13 @@ class TestSensitivityAnalysisFunctions:
             assert 'name' in param
             assert 'importance' in param
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
-    @patch('src.analysis.sensitivity_analysis.load_scenario')
-    def test_run_sensitivity_analysis_error_handling(self, mock_load_scenario):
+    @patch('src.analysis.sensitivity_analysis.ScenarioLoader')
+    def test_run_sensitivity_analysis_error_handling(self, mock_loader_class):
         """Test error handling in run_sensitivity_analysis"""
-        mock_load_scenario.return_value = {}
+        # Mock ScenarioLoader
+        mock_loader = Mock()
+        mock_loader.load_scenario.return_value = {}
+        mock_loader_class.return_value = mock_loader
         
         # Should handle missing config gracefully
         results = run_sensitivity_analysis("bad_scenario", n_samples=8)

@@ -149,8 +149,7 @@ class TestBatchProcessor:
         assert processor.results == []
         assert Path(processor.config.output_dir).exists()
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
-    @patch('src.batch.batch_processor.AIImpactModel')
+    @patch('main.AIImpactModel')
     def test_process_scenario_success(self, mock_model_class, processor):
         """Test successful scenario processing"""
         # Mock model instance
@@ -168,8 +167,7 @@ class TestBatchProcessor:
         assert result.results["financial"]["npv"] == 1000000
         assert result.execution_time > 0
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
-    @patch('src.batch.batch_processor.AIImpactModel')
+    @patch('main.AIImpactModel')
     def test_process_scenario_failure(self, mock_model_class, processor):
         """Test failed scenario processing"""
         mock_model = Mock()
@@ -183,8 +181,7 @@ class TestBatchProcessor:
         assert "Test error" in result.error_message
         assert result.results is None
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
-    @patch('src.batch.batch_processor.AIImpactModel')
+    @patch('main.AIImpactModel')
     def test_process_scenario_with_monte_carlo(self, mock_model_class, processor):
         """Test scenario processing with Monte Carlo"""
         processor.config.include_monte_carlo = True
@@ -213,9 +210,8 @@ class TestBatchProcessor:
         assert result.results["monte_carlo"]["mean_npv"] == 1100000
         assert result.results["monte_carlo"]["probability_positive"] == 0.95
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
-    @patch('src.batch.batch_processor.run_sensitivity_analysis')
-    @patch('src.batch.batch_processor.AIImpactModel')
+    @patch('src.analysis.sensitivity_analysis.run_sensitivity_analysis')
+    @patch('main.AIImpactModel')
     def test_process_scenario_with_sensitivity(self, mock_model_class, mock_sensitivity, processor):
         """Test scenario processing with sensitivity analysis"""
         processor.config.include_sensitivity = True
@@ -259,32 +255,16 @@ class TestBatchProcessor:
         saved_data = json.loads(report_file.read_text())
         assert saved_data == results
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
-    @patch('src.batch.batch_processor.ProcessPoolExecutor')
-    def test_run_parallel(self, mock_executor_class, processor):
+    def test_run_parallel(self, processor):
         """Test parallel execution"""
         processor.config.parallel_workers = 2
         
-        # Mock executor
-        mock_executor = MagicMock()
-        mock_executor_class.return_value.__enter__.return_value = mock_executor
-        
-        # Create mock futures
-        future1 = Mock(spec=Future)
-        future1.result.return_value = BatchResult(
-            "scenario1", True, {"npv": 1000000}, execution_time=1.0
-        )
-        
-        future2 = Mock(spec=Future)
-        future2.result.return_value = BatchResult(
-            "scenario2", True, {"npv": 2000000}, execution_time=1.5
-        )
-        
-        mock_executor.submit.side_effect = [future1, future2]
-        
-        # Mock as_completed
-        with patch('src.batch.batch_processor.as_completed') as mock_as_completed:
-            mock_as_completed.return_value = [future1, future2]
+        # Mock _process_scenario to return successful results
+        with patch.object(processor, '_process_scenario') as mock_process:
+            mock_process.side_effect = [
+                BatchResult("scenario1", True, {"npv": 1000000}, execution_time=1.0),
+                BatchResult("scenario2", True, {"npv": 2000000}, execution_time=1.5)
+            ]
             
             processor._run_parallel()
         
@@ -306,7 +286,6 @@ class TestBatchProcessor:
         assert processor.results[0].scenario_name == "scenario1"
         assert processor.results[1].scenario_name == "scenario2"
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
     def test_generate_comparison_report(self, processor):
         """Test comparison report generation"""
         processor.results = [
@@ -352,8 +331,7 @@ class TestBatchProcessor:
         saved_json = json.loads(json_files[0].read_text())
         assert saved_json[0]["scenario"] == "scenario1"
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
-    @patch('src.batch.batch_processor.AIImpactModel')
+    @patch('main.AIImpactModel')
     def test_run_complete_workflow(self, mock_model_class, processor, tmp_path):
         """Test complete batch processing workflow"""
         processor.config.output_dir = str(tmp_path)
@@ -376,7 +354,6 @@ class TestBatchProcessor:
         assert len(list(tmp_path.glob("*.md"))) > 0
         assert len(list(tmp_path.glob("*.json"))) > 0
     
-    @pytest.mark.skip("Integration test needs refactoring - see GitHub issue #4")
     def test_error_handling_in_parallel(self, processor):
         """Test error handling in parallel execution"""
         processor.config.parallel_workers = 2
@@ -388,8 +365,8 @@ class TestBatchProcessor:
                 Exception("Unexpected error")
             ]
             
-            with patch('src.batch.batch_processor.ProcessPoolExecutor'):
-                with patch('src.batch.batch_processor.as_completed'):
+            with patch('concurrent.futures.ThreadPoolExecutor'):
+                with patch('concurrent.futures.as_completed'):
                     # Should handle exception gracefully
                     processor._run_parallel()
         
