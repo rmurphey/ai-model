@@ -1,0 +1,19 @@
+# Invalid scenario for error testing
+bad_scenario:
+  name: Bad Scenario
+  description: Invalid scenario for testing error handling
+  # Missing required fields to trigger errors
+  baseline:
+    # Missing team_size and other required fields
+    profile: nonexistent_profile
+  adoption:
+    # Invalid scenario reference
+    scenario: invalid_scenario
+  impact:
+    # Missing required fields
+    scenario: null
+  costs:
+    # Invalid values
+    cost_per_seat_month: -50  # Negative value
+    token_price_per_million: "not_a_number"  # Invalid type
+  timeframe_months: -12  # Invalid negative timeframe

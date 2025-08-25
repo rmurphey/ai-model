@@ -1,0 +1,14 @@
+# Test scenario 2 for integration testing
+scenario2:
+  name: Test Scenario 2  
+  description: Second test scenario for integration testing
+  baseline:
+    profile: startup
+    team_size: 15
+  adoption:
+    scenario: grassroots
+  impact:
+    scenario: moderate
+  costs:
+    scenario: startup
+  timeframe_months: 24

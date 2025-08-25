@@ -1,0 +1,14 @@
+# Test scenario 1 for integration testing
+scenario1:
+  name: Test Scenario 1
+  description: First test scenario for integration testing
+  baseline:
+    profile: startup
+    team_size: 10
+  adoption:
+    scenario: organic
+  impact:
+    scenario: moderate
+  costs:
+    scenario: startup
+  timeframe_months: 24
