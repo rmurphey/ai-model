@@ -147,35 +147,193 @@ class AIImpactModel:
         
         return scenario
     
-    def run_scenario(self, scenario_name: str) -> Dict:
+    def run_scenario(self, scenario_name: str, overrides: Optional[Dict] = None) -> Dict:
         """Run a complete scenario analysis"""
         
         print(section_divider(f"Running Scenario: {scenario_name}"))
         
         # Use cached computation for the actual work
-        return self._run_scenario_cached(scenario_name)
+        return self._run_scenario_cached(scenario_name, overrides)
+    
+    def _run_scenario_with_config(self, config: Dict) -> Dict:
+        """Run scenario with a pre-loaded configuration (used by Monte Carlo)"""
+        months = config.get('timeframe_months', 24)
+        
+        # Setup baseline
+        if isinstance(config['baseline'], dict):
+            if 'profile' in config['baseline']:
+                base_config = create_industry_baseline(config['baseline']['profile'])
+                for key, value in config['baseline'].items():
+                    if key != 'profile' and hasattr(base_config, key):
+                        setattr(base_config, key, value)
+                baseline = base_config
+            else:
+                baseline = create_industry_baseline(config['baseline'])
+        else:
+            baseline = create_industry_baseline(config['baseline'])
+        
+        # Setup adoption model - config should have clean values now
+        if isinstance(config['adoption'], dict):
+            if 'scenario' in config['adoption']:
+                # This shouldn't happen with resolved configs, but handle it
+                adoption_params = create_adoption_scenario(config['adoption']['scenario'])
+                for key, value in config['adoption'].items():
+                    if key != 'scenario' and hasattr(adoption_params, key):
+                        setattr(adoption_params, key, value)
+            else:
+                # Clean dict of parameters
+                try:
+                    adoption_params = AdoptionParameters(**config['adoption'])
+                except TypeError as e:
+                    print(f"Error creating AdoptionParameters from config: {config['adoption']}")
+                    print(f"Error: {e}")
+                    raise
+        else:
+            # String scenario reference
+            adoption_params = create_adoption_scenario(config['adoption'])
+        
+        adoption_model = AdoptionModel(adoption_params)
+        adoption_curve = adoption_model.calculate_adoption_curve(months)
+        efficiency_curve = adoption_model.calculate_efficiency_curve(months)
+        effective_adoption = adoption_model.calculate_effective_adoption(months)
+        
+        # Setup impact model - config should have clean values now
+        if isinstance(config['impact'], dict):
+            if 'scenario' in config['impact']:
+                # This shouldn't happen with resolved configs, but handle it
+                impact_factors = create_impact_scenario(config['impact']['scenario'])
+                for key, value in config['impact'].items():
+                    if key != 'scenario' and hasattr(impact_factors, key):
+                        setattr(impact_factors, key, value)
+            else:
+                # Clean dict of parameters
+                impact_factors = ImpactFactors(**config['impact'])
+        else:
+            # String scenario reference
+            impact_factors = create_impact_scenario(config['impact'])
+        
+        # Setup cost model - config should have clean values now
+        if isinstance(config['costs'], dict):
+            if 'scenario' in config['costs']:
+                # This shouldn't happen with resolved configs, but handle it
+                cost_structure = create_cost_scenario(config['costs']['scenario'])
+                for key, value in config['costs'].items():
+                    if key != 'scenario' and hasattr(cost_structure, key):
+                        setattr(cost_structure, key, value)
+            else:
+                # Clean dict of parameters
+                cost_structure = AIToolCosts(**config['costs'])
+        else:
+            # String scenario reference
+            cost_structure = create_cost_scenario(config['costs'])
+        
+        cost_model = CostModel(cost_structure, baseline)
+        
+        # Calculate costs
+        costs = cost_model.calculate_total_costs(months, effective_adoption)
+        
+        # Calculate business impact (use 1.0 as placeholder, methods will use actual adoption rates)
+        impact_model = BusinessImpact(baseline, impact_factors, 1.0)
+        value = impact_model.calculate_value(effective_adoption, months)
+        impact_breakdown = impact_model.get_impact_breakdown(effective_adoption[-1])
+        
+        # Calculate financial metrics
+        net_cash_flows = value - costs['total']
+        npv = calculate_npv_monthly(net_cash_flows, DEFAULT_DISCOUNT_RATE_ANNUAL)
+        
+        # For ROI and totals, sum the monthly arrays
+        total_value = np.sum(value)
+        total_cost = np.sum(costs['total'])
+        roi_percent = calculate_roi(total_value, total_cost) * 100
+        breakeven_month = calculate_breakeven(costs, {'total': value})
+        
+        # Collect results
+        return {
+            'baseline': baseline,
+            'config': config,
+            'adoption': adoption_curve,
+            'efficiency': efficiency_curve,
+            'effective_adoption': effective_adoption,
+            'costs': costs,
+            'value': value,
+            'npv': npv,
+            'roi_percent': roi_percent,
+            'breakeven_month': breakeven_month,
+            'impact_breakdown': impact_breakdown,
+            'peak_adoption': adoption_model.get_peak_adoption(),
+            'cumulative_value': np.cumsum(value),
+            'cumulative_cost': np.cumsum(costs['total']),
+            'total_cost_3y': sum(costs['total'][:min(36, months)]),
+            'total_value_3y': sum(value[:min(36, months)])
+        }
     
     @cached_result(ttl_seconds=3600)
-    def _run_scenario_cached(self, scenario_name: str) -> Dict:
+    def _run_scenario_cached(self, scenario_name: str, overrides: Optional[Dict] = None) -> Dict:
         """Cached scenario computation (no side effects)"""
         
         config = self.load_scenario(scenario_name)
+        
+        # Apply overrides if provided
+        if overrides:
+            # Handle team_size override
+            if 'team_size' in overrides:
+                if isinstance(config['baseline'], dict):
+                    config['baseline']['team_size'] = overrides['team_size']
+                else:
+                    # Convert string baseline to dict
+                    config['baseline'] = {'profile': config['baseline'], 'team_size': overrides['team_size']}
+            
+            # Handle adoption override
+            if 'adoption' in overrides:
+                config['adoption'] = {'scenario': overrides['adoption']}
+            
+            # Handle impact override
+            if 'impact' in overrides:
+                config['impact'] = {'scenario': overrides['impact']}
+            
+            # Handle costs override
+            if 'costs' in overrides:
+                config['costs'] = {'scenario': overrides['costs']}
+        
         months = config.get('timeframe_months', 24)
         
         # 1. Setup baseline
-        if isinstance(config['baseline'], dict) and 'profile' in config['baseline']:
-            baseline = create_industry_baseline(config['baseline']['profile'])
+        if isinstance(config['baseline'], dict):
+            if 'profile' in config['baseline']:
+                # Start with profile baseline, then apply overrides
+                base_config = create_industry_baseline(config['baseline']['profile'])
+                # Apply any additional parameters from config
+                for key, value in config['baseline'].items():
+                    if key != 'profile' and hasattr(base_config, key):
+                        setattr(base_config, key, value)
+                baseline = base_config
+            else:
+                # Pass the dict to create_industry_baseline which will filter fields
+                baseline = create_industry_baseline(config['baseline'])
         elif isinstance(config['baseline'], str):
             baseline = create_industry_baseline(config['baseline'])
         else:
-            # Pass the dict to create_industry_baseline which will filter fields
             baseline = create_industry_baseline(config['baseline'])
         
         # 2. Setup adoption model
         if isinstance(config['adoption'], dict) and 'scenario' in config['adoption']:
+            # Start with scenario defaults
             adoption_params = create_adoption_scenario(config['adoption']['scenario'])
+            # Override with any additional specified parameters
+            for key, value in config['adoption'].items():
+                if key != 'scenario' and hasattr(adoption_params, key):
+                    # Extract value if it's a dict with 'value' key
+                    if isinstance(value, dict) and 'value' in value:
+                        setattr(adoption_params, key, value['value'])
+                    elif not isinstance(value, dict):
+                        setattr(adoption_params, key, value)
         else:
-            adoption_params = AdoptionParameters(**config['adoption'])
+            try:
+                adoption_params = AdoptionParameters(**config['adoption'])
+            except TypeError as e:
+                print(f"Error creating AdoptionParameters from config: {config['adoption']}")
+                print(f"Error: {e}")
+                raise
         
         adoption_model = AdoptionModel(adoption_params)
         adoption_curve = adoption_model.calculate_adoption_curve(months)
@@ -184,13 +342,31 @@ class AIImpactModel:
         
         # 3. Setup impact model
         if isinstance(config['impact'], dict) and 'scenario' in config['impact']:
+            # Start with scenario defaults
             impact_factors = create_impact_scenario(config['impact']['scenario'])
+            # Override with any additional specified parameters
+            for key, value in config['impact'].items():
+                if key != 'scenario' and hasattr(impact_factors, key):
+                    # Extract value if it's a dict with 'value' key
+                    if isinstance(value, dict) and 'value' in value:
+                        setattr(impact_factors, key, value['value'])
+                    elif not isinstance(value, dict):
+                        setattr(impact_factors, key, value)
         else:
             impact_factors = ImpactFactors(**config['impact'])
         
         # 4. Setup cost model
         if isinstance(config['costs'], dict) and 'scenario' in config['costs']:
+            # Start with scenario defaults
             cost_structure = create_cost_scenario(config['costs']['scenario'])
+            # Override with any additional specified parameters
+            for key, value in config['costs'].items():
+                if key != 'scenario' and hasattr(cost_structure, key):
+                    # Extract value if it's a dict with 'value' key
+                    if isinstance(value, dict) and 'value' in value:
+                        setattr(cost_structure, key, value['value'])
+                    elif not isinstance(value, dict):
+                        setattr(cost_structure, key, value)
         else:
             cost_structure = AIToolCosts(**config['costs'])
         

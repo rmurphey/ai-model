@@ -1,0 +1,13 @@
+startup_aggressive_50:
+  name: Aggressive Startup (50 developers)
+  description: startup team with 50 developers with all-in on AI
+  baseline:
+    profile: startup
+    team_size: 50  # Override team size to 50
+  adoption:
+    scenario: mandated
+  impact:
+    scenario: aggressive
+  costs:
+    scenario: startup
+  timeframe_months: 24

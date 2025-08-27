@@ -149,6 +149,18 @@ class ScenarioLoader:
         """Load all scenarios from modular directory structure."""
         scenarios = {}
         
+        # First, check for scenarios.yaml in the root directory
+        root_scenarios_file = self.scenarios_path / "scenarios.yaml"
+        if root_scenarios_file.exists():
+            try:
+                with open(root_scenarios_file, 'r') as f:
+                    root_scenarios = yaml.safe_load(f)
+                    if isinstance(root_scenarios, dict):
+                        scenarios.update(root_scenarios)
+            except yaml.YAMLError:
+                pass  # Ignore errors in root file and continue
+        
+        
         # Load deterministic scenarios
         det_dir = self.scenarios_path / "scenarios" / "deterministic"
         if det_dir.exists():

@@ -10,7 +10,10 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import multiprocessing as mp
 
-from .distributions import ParameterDistributions, Distribution, Deterministic, create_distribution_from_config
+from .distributions import (
+    ParameterDistributions, Distribution, Deterministic, create_distribution_from_config,
+    Triangular, Beta, Uniform, LogNormal, Normal
+)
 from .baseline import BaselineMetrics
 from .impact_model import ImpactFactors
 from .adoption_dynamics import AdoptionParameters
@@ -251,7 +254,10 @@ class MonteCarloEngine:
     
     def _apply_sampled_parameters(self, base_config: Dict[str, Any], 
                                  sampled_params: Dict[str, float]) -> Dict[str, Any]:
-        """Apply sampled parameters to base configuration"""
+        """
+        Apply sampled parameters to base configuration.
+        Assumes base_config has clean, simple values (not dicts with 'value' keys).
+        """
         import copy
         modified_config = copy.deepcopy(base_config)
         
@@ -267,16 +273,9 @@ class MonteCarloEngine:
                     current[part] = {}
                 current = current[part]
             
-            # Handle the final parameter
+            # Set the value directly (config should have clean values)
             final_key = path_parts[-1]
-            
-            # If the parameter has a distribution structure, replace just the value
-            if isinstance(current.get(final_key), dict) and 'value' in current[final_key]:
-                # Keep the structure but update the value
-                current[final_key] = value
-            else:
-                # Set the value directly
-                current[final_key] = value
+            current[final_key] = value
         
         return modified_config
     
@@ -373,11 +372,99 @@ class MonteCarloEngine:
         return importance
 
 
-def create_parameter_distributions_from_scenario(scenario_config: Dict[str, Any]) -> ParameterDistributions:
+def auto_generate_distribution(param_name: str, value: float, section: str = "") -> Distribution:
+    """
+    Auto-generate an appropriate distribution based on parameter name and value.
+    
+    Args:
+        param_name: Name of the parameter
+        value: Central value for the distribution
+        section: Section name (baseline, adoption, impact, costs) for context
+        
+    Returns:
+        An appropriate Distribution object
+    """
+    # Normalize parameter name for matching
+    param_lower = param_name.lower()
+    
+    # Percentages/rates (0-1 range)
+    if any(term in param_lower for term in ['rate', 'percentage', 'ratio', 'efficiency', 'multiplier']):
+        # Use Beta distribution for bounded percentages
+        if 0 <= value <= 1:
+            # Shape parameters to give reasonable variance around the value
+            if value <= 0.1:  # Low percentages - allow more upward variance
+                alpha = 2
+                beta = 18
+            elif value >= 0.9:  # High percentages - allow more downward variance  
+                alpha = 18
+                beta = 2
+            else:  # Middle range - symmetric variance
+                mean_target = value
+                variance_target = 0.01  # Modest variance
+                alpha = mean_target * ((mean_target * (1 - mean_target) / variance_target) - 1)
+                beta = (1 - mean_target) * ((mean_target * (1 - mean_target) / variance_target) - 1)
+                alpha = max(1, min(alpha, 20))  # Keep reasonable bounds
+                beta = max(1, min(beta, 20))
+            
+            min_val = max(0, value - 0.2)
+            max_val = min(1, value + 0.2)
+            return Beta(alpha=alpha, beta=beta, min_val=min_val, max_val=max_val)
+        else:
+            # For multipliers > 1, use triangular
+            return Triangular(
+                min_val=value * 0.8,
+                mode=value,
+                max_val=value * 1.3
+            )
+    
+    # Time-based parameters (days, hours, months)
+    elif any(term in param_lower for term in ['days', 'hours', 'time', 'cycle', 'month', 'week']):
+        # Triangular with asymmetric bounds (delays more likely than speedups)
+        return Triangular(
+            min_val=value * 0.75,
+            mode=value,
+            max_val=value * 1.5
+        )
+    
+    # Count-based parameters (team size, incidents)
+    elif any(term in param_lower for term in ['size', 'count', 'number', 'incidents']):
+        if value >= 20:  # Larger counts - use uniform
+            return Uniform(min_val=value * 0.7, max_val=value * 1.3)
+        else:  # Smaller counts - use triangular for more control
+            return Triangular(
+                min_val=max(1, value * 0.5),
+                mode=value,
+                max_val=value * 1.5
+            )
+    
+    # Cost/financial parameters
+    elif any(term in param_lower for term in ['cost', 'price', 'budget', 'spend']) or section == 'costs':
+        # LogNormal for costs (can't be negative, long tail for overruns)
+        std_log = 0.2  # 20% coefficient of variation
+        mean_log = np.log(value)
+        return LogNormal(mean_log=mean_log, std_log=std_log, min_val=value * 0.5, max_val=value * 2.0)
+    
+    # Quality metrics
+    elif any(term in param_lower for term in ['defect', 'quality', 'error']):
+        # Normal distribution with bounds
+        return Normal(mean=value, std=value * 0.2, min_val=max(0, value * 0.5), max_val=value * 1.5)
+    
+    # Default: Triangular with ±20% bounds
+    else:
+        return Triangular(
+            min_val=value * 0.8,
+            mode=value,
+            max_val=value * 1.2
+        )
+
+
+def create_parameter_distributions_from_scenario(scenario_config: Dict[str, Any],
+                                                auto_generate: bool = False) -> ParameterDistributions:
     """
     Create parameter distributions from scenario configuration.
     
     If a parameter has a distribution definition, use it.
+    If auto_generate=True, create appropriate distributions for values without them.
     Otherwise, create a deterministic distribution from the point value.
     """
     distributions = ParameterDistributions()
@@ -389,18 +476,26 @@ def create_parameter_distributions_from_scenario(scenario_config: Dict[str, Any]
                 full_param_name = f"{section_name}.{param_name}"
                 
                 if isinstance(param_value, dict) and 'distribution' in param_value:
-                    # Parameter has distribution definition
+                    # Parameter has distribution definition - use it
                     dist_config = param_value['distribution']
                     distribution = create_distribution_from_config(dist_config)
                 elif isinstance(param_value, dict) and 'value' in param_value:
                     # Parameter has a value field but no distribution
-                    distribution = Deterministic(value=float(param_value['value']))
-                else:
-                    # Use deterministic distribution for point value
-                    if isinstance(param_value, (int, float)):
-                        distribution = Deterministic(value=float(param_value))
+                    value = float(param_value['value'])
+                    if auto_generate:
+                        distribution = auto_generate_distribution(param_name, value, section_name)
                     else:
-                        continue  # Skip non-numeric parameters
+                        distribution = Deterministic(value=value)
+                else:
+                    # Raw value (number or string)
+                    if isinstance(param_value, (int, float)):
+                        value = float(param_value)
+                        if auto_generate:
+                            distribution = auto_generate_distribution(param_name, value, section_name)
+                        else:
+                            distribution = Deterministic(value=value)
+                    else:
+                        continue  # Skip non-numeric parameters (e.g., 'scenario' references)
                 
                 distributions.add_distribution(full_param_name, distribution)
     

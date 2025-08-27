@@ -184,6 +184,11 @@ class AdoptionModel:
         
         return adoption * efficiency
     
+    def get_peak_adoption(self, months: int = 24) -> float:
+        """Get the peak adoption rate achieved"""
+        adoption = self.calculate_adoption_curve(months)
+        return np.max(adoption)
+    
     def segment_adoption(self, baseline_team: Dict[str, float]) -> Dict[str, np.ndarray]:
         """Calculate adoption by developer segment"""
         

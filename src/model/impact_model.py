@@ -262,6 +262,47 @@ class BusinessImpact:
                 context="value as percent of cost calculation"
             )
         }
+    
+    def calculate_value(self, effective_adoption: np.ndarray, months: int) -> np.ndarray:
+        """
+        Calculate monthly value based on adoption curve.
+        
+        Args:
+            effective_adoption: Array of monthly effective adoption rates
+            months: Number of months to calculate
+            
+        Returns:
+            Array of monthly value generated
+        """
+        monthly_value = np.zeros(months)
+        
+        for month in range(months):
+            # Update adoption rate for this month
+            self.adoption_rate = effective_adoption[month]
+            
+            # Calculate total impact for this month
+            impact = self.calculate_total_impact()
+            
+            # Convert annual value to monthly value
+            monthly_value[month] = impact["total_annual_value"] / 12
+        
+        return monthly_value
+    
+    def get_impact_breakdown(self, adoption_rate: float) -> Dict[str, float]:
+        """
+        Get detailed impact breakdown for a specific adoption rate.
+        
+        Args:
+            adoption_rate: Adoption rate to calculate impact for
+            
+        Returns:
+            Dictionary with detailed impact breakdown
+        """
+        # Update adoption rate
+        self.adoption_rate = adoption_rate
+        
+        # Calculate and return total impact
+        return self.calculate_total_impact()
 
 
 def create_impact_scenario(scenario_or_params = "moderate") -> ImpactFactors:
@@ -336,6 +377,26 @@ def create_impact_scenario(scenario_or_params = "moderate") -> ImpactFactors:
             junior_multiplier=1.8,
             mid_multiplier=1.5,
             senior_multiplier=1.3
+        ),
+        
+        "realistic": ImpactFactors(
+            feature_cycle_reduction=0.075,  # 7.5% average improvement
+            bug_fix_reduction=0.10,         # 10% for bug fixes
+            onboarding_reduction=0.05,      # 5% for onboarding
+            pr_review_reduction=0.15,       # 15% for PR reviews
+            defect_reduction=0.05,          # 5% quality improvement
+            incident_reduction=0.03,        # 3% fewer incidents
+            rework_reduction=0.08,          # 8% less rework
+            feature_capacity_gain=0.02,     # 2% capacity gain
+            tech_debt_capacity_gain=0.01,   # 1% tech debt capacity
+            boilerplate_effectiveness=0.80, # 80% for highly automatable tasks
+            test_generation_effectiveness=0.60,  # 60% for simple tests
+            documentation_effectiveness=0.40,     # 40% for docs
+            code_review_effectiveness=0.20,       # 20% for review assistance
+            debugging_effectiveness=0.10,         # 10% for debugging
+            junior_multiplier=1.2,          # Juniors benefit more
+            mid_multiplier=1.0,             # Mids see baseline impact
+            senior_multiplier=0.9           # Seniors benefit less
         )
     }
     

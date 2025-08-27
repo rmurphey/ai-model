@@ -1,44 +1,326 @@
+# Unified scenarios - work for both deterministic and Monte Carlo modes
+# When --monte-carlo is used, distributions are used if present, otherwise auto-generated
+# For deterministic mode, the 'value' field or raw value is used
+
+realistic_assessment:
+  name: "Realistic AI Impact Assessment"
+  description: "Based on actual observed AI productivity gains: 5-10% for most tasks, 80% for 5% of highly automatable tasks, 0% for 5% of complex tasks"
+  baseline:
+    profile: enterprise
+    team_size: 50
+  adoption:
+    scenario: organic
+    initial_adopters: 0.10
+    dropout_rate_month: 0.05
+    plateau_efficiency: 0.70
+  impact:
+    feature_cycle_reduction: 0.075
+    bug_fix_reduction: 0.10
+    onboarding_reduction: 0.05
+    pr_review_reduction: 0.15
+    defect_reduction: 0.05
+    incident_reduction: 0.03
+    rework_reduction: 0.08
+    feature_capacity_gain: 0.02
+    tech_debt_capacity_gain: 0.01
+    boilerplate_effectiveness: 0.80
+    test_generation_effectiveness: 0.60
+    documentation_effectiveness: 0.40
+    code_review_effectiveness: 0.20
+    debugging_effectiveness: 0.10
+    junior_multiplier: 1.2
+    mid_multiplier: 1.0
+    senior_multiplier: 0.9
+  costs:
+    scenario: enterprise
+    cost_per_seat_month: 50
+  timeframe_months: 24
+
 conservative_startup:
   name: Conservative Startup
   description: startup team (5-20 people) with cautious AI adoption
   baseline:
     profile: startup
+    team_size:
+      value: 10
+      distribution:
+        type: uniform
+        min: 5
+        max: 20
   adoption:
     scenario: organic
+    initial_adopters:
+      value: 0.05
+      distribution:
+        type: beta
+        alpha: 1
+        beta: 19
+        min: 0.01
+        max: 0.15
+    dropout_rate_month:
+      value: 0.02
+      distribution:
+        type: triangular
+        min: 0.01
+        mode: 0.02
+        max: 0.05
   impact:
     scenario: conservative
+    feature_cycle_reduction:
+      value: 0.10
+      distribution:
+        type: triangular
+        min: 0.05
+        mode: 0.10
+        max: 0.20
   costs:
     scenario: startup
+    cost_per_seat_month:
+      value: 30
+      distribution:
+        type: uniform
+        min: 25
+        max: 40
   timeframe_months: 24
+
 moderate_startup:
   name: Moderate Startup
   description: startup team (5-20 people) with balanced adoption approach
   baseline:
     profile: startup
+    team_size:
+      value: 10
+      distribution:
+        type: uniform
+        min: 5
+        max: 20
   adoption:
     scenario: grassroots
+    initial_adopters:
+      value: 0.10
+      distribution:
+        type: beta
+        alpha: 2
+        beta: 18
+        min: 0.05
+        max: 0.20
   impact:
     scenario: moderate
+    feature_cycle_reduction:
+      value: 0.25
+      distribution:
+        type: triangular
+        min: 0.18
+        mode: 0.25
+        max: 0.32
   costs:
     scenario: startup
   timeframe_months: 24
+
 aggressive_startup:
   name: Aggressive Startup
   description: startup team (5-20 people) with all-in on AI
   baseline:
     profile: startup
+    team_size:
+      value: 10
+      distribution:
+        type: uniform
+        min: 5
+        max: 20
   adoption:
     scenario: mandated
+    initial_adopters:
+      value: 0.20
+      distribution:
+        type: beta
+        alpha: 4
+        beta: 16
+        min: 0.12
+        max: 0.30
+    dropout_rate_month:
+      value: 0.015
+      distribution:
+        type: triangular
+        min: 0.005
+        mode: 0.015
+        max: 0.025
   impact:
     scenario: aggressive
+    feature_cycle_reduction:
+      value: 0.40
+      distribution:
+        type: triangular
+        min: 0.32
+        mode: 0.40
+        max: 0.50
+  costs:
+    scenario: startup
+    cost_per_seat_month:
+      value: 30
+      distribution:
+        type: triangular
+        min: 25
+        mode: 30
+        max: 40
+    initial_tokens_per_dev_month:
+      value: 200000
+      distribution:
+        type: triangular
+        min: 150000
+        mode: 200000
+        max: 300000
+  timeframe_months: 24
+
+conservative_scaleup:
+  name: Conservative Scaleup
+  description: scaleup team (20-100 people) with cautious adoption
+  baseline:
+    profile: scaleup
+    team_size:
+      value: 50
+      distribution:
+        type: uniform
+        min: 20
+        max: 100
+  adoption:
+    scenario: organic
+  impact:
+    scenario: conservative
   costs:
     scenario: startup
   timeframe_months: 24
+
+moderate_scaleup:
+  name: Moderate Scaleup
+  description: scaleup team (20-100 people) with balanced AI adoption
+  baseline:
+    profile: scaleup
+    team_size:
+      value: 50
+      distribution:
+        type: uniform
+        min: 20
+        max: 100
+    avg_feature_cycle_days:
+      value: 18
+      distribution:
+        type: triangular
+        min: 14
+        mode: 18
+        max: 25
+    defect_escape_rate:
+      value: 6.0
+      distribution:
+        type: normal
+        mean: 6.0
+        std: 1.2
+        min: 3.0
+        max: 10.0
+  adoption:
+    scenario: organic
+    initial_adopters:
+      value: 0.05
+      distribution:
+        type: beta
+        alpha: 2
+        beta: 38
+        min: 0.02
+        max: 0.10
+  impact:
+    scenario: moderate
+    feature_cycle_reduction:
+      value: 0.25
+      distribution:
+        type: triangular
+        min: 0.18
+        mode: 0.25
+        max: 0.32
+  costs:
+    scenario: startup
+    cost_per_seat_month:
+      value: 35
+      distribution:
+        type: triangular
+        min: 30
+        mode: 35
+        max: 45
+  timeframe_months: 24
+
+aggressive_scaleup:
+  name: Aggressive Scaleup
+  description: scaleup team (20-100 people) with aggressive AI adoption
+  baseline:
+    profile: scaleup
+    team_size:
+      value: 50
+      distribution:
+        type: uniform
+        min: 20
+        max: 100
+    avg_feature_cycle_days:
+      value: 14
+      distribution:
+        type: triangular
+        min: 10
+        mode: 14
+        max: 18
+    defect_escape_rate:
+      value: 4.0
+      distribution:
+        type: normal
+        mean: 4.0
+        std: 0.8
+        min: 2.0
+        max: 7.0
+  adoption:
+    scenario: grassroots
+    initial_adopters:
+      value: 0.10
+      distribution:
+        type: beta
+        alpha: 3
+        beta: 27
+        min: 0.05
+        max: 0.18
+    dropout_rate_month:
+      value: 0.015
+      distribution:
+        type: triangular
+        min: 0.005
+        mode: 0.015
+        max: 0.025
+  impact:
+    scenario: aggressive
+    feature_cycle_reduction:
+      value: 0.40
+      distribution:
+        type: triangular
+        min: 0.32
+        mode: 0.40
+        max: 0.50
+  costs:
+    scenario: aggressive
+    cost_per_seat_month:
+      value: 100
+      distribution:
+        type: triangular
+        min: 80
+        mode: 100
+        max: 130
+  timeframe_months: 24
+
 conservative_enterprise:
   name: Conservative Enterprise
   description: enterprise team (101+ people) with cautious AI adoption
   baseline:
     profile: enterprise
+    team_size:
+      value: 150
+      distribution:
+        type: uniform
+        min: 100
+        max: 200
   adoption:
     scenario: organic
   impact:
@@ -46,193 +328,174 @@ conservative_enterprise:
   costs:
     scenario: enterprise
   timeframe_months: 36
+
 moderate_enterprise:
   name: Moderate Enterprise
-  description: enterprise team (101+ people) with balanced adoption approach
+  description: enterprise team (101+ people) with balanced adoption
   baseline:
     profile: enterprise
-  adoption:
-    scenario: grassroots
-  impact:
-    scenario: moderate
-  costs:
-    scenario: enterprise
-  timeframe_months: 36
-aggressive_enterprise:
-  name: Aggressive Enterprise
-  description: enterprise team (101+ people) with all-in on AI
-  baseline:
-    profile: enterprise
-  adoption:
-    scenario: mandated
-  impact:
-    scenario: aggressive
-  costs:
-    scenario: enterprise
-  timeframe_months: 36
-conservative_scaleup:
-  name: Conservative Scaleup
-  description: scaleup team (20-100 people) with cautious AI adoption
-  baseline:
-    profile: scale_up
+    team_size:
+      value: 150
+      distribution:
+        type: uniform
+        min: 100
+        max: 200
+    avg_feature_cycle_days:
+      value: 21
+      distribution:
+        type: triangular
+        min: 18
+        mode: 21
+        max: 28
+    defect_escape_rate:
+      value: 5.0
+      distribution:
+        type: normal
+        mean: 5.0
+        std: 1.0
+        min: 2.0
+        max: 10.0
+    rework_percentage:
+      value: 0.15
+      distribution:
+        type: beta
+        alpha: 3
+        beta: 17
+        min: 0.05
+        max: 0.25
   adoption:
     scenario: organic
-  impact:
-    scenario: conservative
-  costs:
-    scenario: aggressive
-  timeframe_months: 24
-moderate_scaleup:
-  name: Moderate Scaleup
-  description: scaleup team (20-100 people) with balanced adoption approach
-  baseline:
-    profile: scale_up
-  adoption:
-    scenario: grassroots
+    initial_adopters:
+      value: 0.05
+      distribution:
+        type: beta
+        alpha: 2
+        beta: 38
+        min: 0.02
+        max: 0.10
+    dropout_rate_month:
+      value: 0.02
+      distribution:
+        type: triangular
+        min: 0.01
+        mode: 0.02
+        max: 0.04
   impact:
     scenario: moderate
+    feature_cycle_reduction:
+      value: 0.25
+      distribution:
+        type: triangular
+        min: 0.20
+        mode: 0.25
+        max: 0.35
   costs:
-    scenario: aggressive
-  timeframe_months: 24
-aggressive_scaleup:
-  name: Aggressive Scaleup
-  description: scaleup team (20-100 people) with all-in on AI
+    scenario: enterprise
+    cost_per_seat_month:
+      value: 50
+      distribution:
+        type: triangular
+        min: 45
+        mode: 50
+        max: 60
+  timeframe_months: 36
+
+aggressive_enterprise:
+  name: Aggressive Enterprise
+  description: enterprise team (101+ people) with aggressive AI adoption
   baseline:
-    profile: scale_up
+    profile: enterprise
+    team_size:
+      value: 150
+      distribution:
+        type: uniform
+        min: 100
+        max: 200
+    avg_feature_cycle_days:
+      value: 18
+      distribution:
+        type: triangular
+        min: 14
+        mode: 18
+        max: 24
+    defect_escape_rate:
+      value: 4.0
+      distribution:
+        type: normal
+        mean: 4.0
+        std: 0.8
+        min: 2.0
+        max: 7.0
+    rework_percentage:
+      value: 0.10
+      distribution:
+        type: beta
+        alpha: 2
+        beta: 18
+        min: 0.05
+        max: 0.18
   adoption:
     scenario: mandated
+    initial_adopters:
+      value: 0.20
+      distribution:
+        type: beta
+        alpha: 4
+        beta: 16
+        min: 0.12
+        max: 0.30
+    dropout_rate_month:
+      value: 0.03
+      distribution:
+        type: triangular
+        min: 0.015
+        mode: 0.03
+        max: 0.05
   impact:
     scenario: aggressive
+    feature_cycle_reduction:
+      value: 0.40
+      distribution:
+        type: triangular
+        min: 0.30
+        mode: 0.40
+        max: 0.50
+    defect_reduction:
+      value: 0.45
+      distribution:
+        type: beta
+        alpha: 4.5
+        beta: 5.5
+        min: 0.32
+        max: 0.58
   costs:
     scenario: aggressive
-  timeframe_months: 24
+    cost_per_seat_month:
+      value: 100
+      distribution:
+        type: triangular
+        min: 85
+        mode: 100
+        max: 120
+    initial_tokens_per_dev_month:
+      value: 1000000
+      distribution:
+        type: triangular
+        min: 750000
+        mode: 1000000
+        max: 1400000
+  timeframe_months: 36
+
+# Custom scenario for user-defined parameters
 custom:
   name: Custom Scenario
   description: User-defined parameters
   baseline:
-    team_size: 30
-    junior_ratio: 0.33
-    mid_ratio: 0.5
-    senior_ratio: 0.17
-    junior_flc: 130000
-    mid_flc: 170000
-    senior_flc: 240000
-    avg_feature_cycle_days: 20
-    avg_bug_fix_hours: 10
-    onboarding_days: 40
-    defect_escape_rate: 4.0
-    production_incidents_per_month: 3
-    avg_incident_cost: 8000
-    rework_percentage: 0.18
-    new_feature_percentage: 0.45
-    maintenance_percentage: 0.3
-    tech_debt_percentage: 0.1
-    meetings_percentage: 0.15
-    avg_pr_review_hours: 2.5
-    pr_rejection_rate: 0.2
+    profile: enterprise
   adoption:
-    initial_adopters: 0.08
-    early_adopters: 0.18
-    early_majority: 0.34
-    late_majority: 0.28
-    laggards: 0.12
-    training_effectiveness: 0.6
-    peer_influence: 0.8
-    management_mandate: 0.5
-    initial_resistance: 0.35
-    dropout_rate_month: 0.04
-    re_engagement_rate: 0.03
-    initial_efficiency: 0.35
-    learning_rate: 0.35
-    plateau_efficiency: 0.88
-    junior_adoption_multiplier: 1.4
-    mid_adoption_multiplier: 1.1
-    senior_adoption_multiplier: 0.75
+    scenario: organic
   impact:
-    feature_cycle_reduction: 0.28
-    bug_fix_reduction: 0.38
-    onboarding_reduction: 0.45
-    pr_review_reduction: 0.55
-    defect_reduction: 0.32
-    incident_reduction: 0.28
-    rework_reduction: 0.45
-    feature_capacity_gain: 0.12
-    tech_debt_capacity_gain: 0.06
-    boilerplate_effectiveness: 0.88
-    test_generation_effectiveness: 0.75
-    documentation_effectiveness: 0.85
-    code_review_effectiveness: 0.65
-    debugging_effectiveness: 0.55
-    junior_multiplier: 1.6
-    mid_multiplier: 1.35
-    senior_multiplier: 1.25
+    scenario: moderate
   costs:
-    cost_per_seat_month: 40
-    enterprise_discount: 0.15
-    initial_tokens_per_dev_month: 350000
-    token_price_per_million: 9
-    token_price_decline_annual: 0.28
-    token_growth_rate_monthly: 0.12
-    token_plateau_month: 10
-    initial_training_cost_per_dev: 1200
-    ongoing_training_cost_annual: 300
-    trainer_cost_per_day: 1800
-    training_days_initial: 3
-    training_days_ongoing_annual: 1.5
-    infrastructure_setup: 15000
-    infrastructure_monthly: 1500
-    admin_overhead_percentage: 0.03
-    context_switch_cost_month: 750
-    bad_code_cleanup_percentage: 0.06
-    security_review_overhead: 2
-    pilot_budget: 25000
-    ongoing_experimentation: 15000
-  timeframe_months: 30
-task_distributions:
-  balanced:
-    boilerplate: 0.15
-    testing: 0.2
-    documentation: 0.1
-    code_review: 0.15
-    debugging: 0.15
-    feature_development: 0.2
-    refactoring: 0.05
-  feature_heavy:
-    boilerplate: 0.1
-    testing: 0.15
-    documentation: 0.05
-    code_review: 0.1
-    debugging: 0.1
-    feature_development: 0.4
-    refactoring: 0.1
-  maintenance_heavy:
-    boilerplate: 0.05
-    testing: 0.15
-    documentation: 0.15
-    code_review: 0.2
-    debugging: 0.25
-    feature_development: 0.1
-    refactoring: 0.1
-sensitivity:
-  parameters:
-  - adoption_rate
-  - token_price
-  - feature_cycle_reduction
-  - defect_reduction
-  - cost_per_seat
-  ranges:
-    adoption_rate:
-    - 0.3
-    - 0.9
-    token_price:
-    - 5
-    - 15
-    feature_cycle_reduction:
-    - 0.1
-    - 0.5
-    defect_reduction:
-    - 0.1
-    - 0.5
-    cost_per_seat:
-    - 20
-    - 100
+    scenario: enterprise
+  timeframe_months: 24

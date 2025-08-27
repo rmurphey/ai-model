@@ -135,3 +135,14 @@ def section_divider(title: str, width: int = 60) -> str:
 def subsection_divider(title: str, width: int = 60) -> str:
     """Create a colored subsection divider"""
     return info(f"\n{'-'*width}\n{title}\n{'-'*width}")
+
+
+# Export common colors for backward compatibility
+RED = Colors.RED
+GREEN = Colors.GREEN
+YELLOW = Colors.YELLOW
+BLUE = Colors.BLUE
+CYAN = Colors.CYAN
+WHITE = Colors.WHITE
+BOLD = Colors.BOLD
+RESET = Colors.RESET

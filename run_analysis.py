@@ -57,22 +57,36 @@ class AnalysisRunner:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return os.path.join(self.output_dir, f"analysis_{timestamp}.md")
     
-    def capture_scenario_output(self, scenario_name: str) -> tuple[Dict, str]:
+    def capture_scenario_output(self, scenario_name: str, overrides: Optional[Dict] = None) -> tuple[Dict, str]:
         """Run scenario and capture both results and formatted output"""
         
         # Capture printed output
         output_buffer = StringIO()
         with contextlib.redirect_stdout(output_buffer):
-            results = self.model.run_scenario(scenario_name)
+            results = self.model.run_scenario(scenario_name, overrides=overrides)
             self.model.print_summary(results)
         
         captured_output = output_buffer.getvalue()
         return results, captured_output
     
-    def run_single_scenario(self, scenario_name: str) -> tuple[Dict, str]:
-        """Run a single scenario and return results"""
+    def run_single_scenario(self, scenario_name: str, overrides: Optional[Dict] = None) -> tuple[Dict, str]:
+        """Run both deterministic and Monte Carlo analysis for a single scenario"""
+        from src.scenarios.scenario_resolver import resolve_scenario, extract_distributions, apply_overrides
+        from src.model.monte_carlo import MonteCarloEngine
         
-        print(info(f"🔄 Running scenario: {scenario_name}"))
+        print(info(f"🔄 Running dual-mode analysis: {scenario_name}"))
+        if overrides:
+            override_info = []
+            if 'team_size' in overrides:
+                override_info.append(f"team_size={overrides['team_size']}")
+            if 'adoption' in overrides:
+                override_info.append(f"adoption={overrides['adoption']}")
+            if 'impact' in overrides:
+                override_info.append(f"impact={overrides['impact']}")
+            if 'costs' in overrides:
+                override_info.append(f"costs={overrides['costs']}")
+            if override_info:
+                print(dim_text(f"   Overrides: {', '.join(override_info)}"))
         
         if scenario_name not in self.get_available_scenarios():
             raise ScenarioError(
@@ -82,10 +96,53 @@ class AnalysisRunner:
                 config_file="src/scenarios/scenarios.yaml"
             )
         
-        results, output = self.capture_scenario_output(scenario_name)
-        print(success("✅ Scenario completed"))
+        # Load and resolve scenario
+        scenario_config = self.model.load_scenario(scenario_name)
+        deterministic_config = resolve_scenario(scenario_config)
         
-        return results, output
+        # Apply overrides to deterministic config
+        if overrides:
+            # Handle scenario reference overrides
+            if 'adoption' in overrides:
+                deterministic_config['adoption'] = {'scenario': overrides['adoption']}
+                deterministic_config['adoption'] = resolve_scenario({'adoption': deterministic_config['adoption']})['adoption']
+            if 'impact' in overrides:
+                deterministic_config['impact'] = {'scenario': overrides['impact']}
+                deterministic_config['impact'] = resolve_scenario({'impact': deterministic_config['impact']})['impact']
+            if 'costs' in overrides:
+                deterministic_config['costs'] = {'scenario': overrides['costs']}
+                deterministic_config['costs'] = resolve_scenario({'costs': deterministic_config['costs']})['costs']
+            # Apply simple value overrides
+            apply_overrides(deterministic_config, overrides)
+        
+        # Run deterministic analysis
+        print(dim_text("   Running deterministic analysis..."))
+        deterministic_results, _ = self.capture_scenario_output(scenario_name, overrides)
+        
+        # Run Monte Carlo analysis
+        print(dim_text("   Running Monte Carlo analysis (1000 iterations)..."))
+        distributions = extract_distributions(scenario_config, auto_generate=True)
+        
+        mc_engine = MonteCarloEngine(
+            model_runner=lambda cfg: self.model._run_scenario_with_config(cfg),
+            parameter_distributions=distributions,
+            iterations=1000,
+            confidence_level=0.95
+        )
+        
+        mc_results = mc_engine.run(deterministic_config)
+        
+        # Create combined report
+        output = self._format_combined_report(
+            scenario_name,
+            deterministic_results,
+            mc_results,
+            overrides
+        )
+        
+        print(success("✅ Dual-mode analysis completed"))
+        
+        return deterministic_results, output
     
     def run_multiple_scenarios(self, scenario_names: List[str]) -> tuple[List[Dict], str]:
         """Run multiple scenarios and return combined results"""
@@ -132,7 +189,6 @@ class AnalysisRunner:
         print(success("✅ Comparison completed"))
         return output_buffer.getvalue()
     
-    def format_final_output(self, results_data, scenario_names: List[str], analysis_type: str) -> str:
         """Generate markdown output directly from results data"""
         
         generation_time = datetime.now()
@@ -392,6 +448,228 @@ First 12 months progression:
                 markdown += f"| {row['Scenario']} | {row['NPV']} | {row['ROI']} | {row['Breakeven']} | {row['Peak Adoption']} | {row['Cost/Dev/Year']} | {row['Value/Dev/Year']} |\n"
         
         return markdown
+    
+    def run_monte_carlo(self, scenario_name: str, overrides: Optional[Dict] = None,
+                        iterations: int = 1000, confidence: float = 0.95, 
+                        seed: Optional[int] = None) -> tuple[Dict, str]:
+        """Run Monte Carlo simulation for a scenario"""
+        
+        print(header(f"Monte Carlo Analysis: {scenario_name}"))
+        print(dim_text(f"  Iterations: {iterations:,}"))
+        print(dim_text(f"  Confidence: {confidence:.0%}"))
+        if seed is not None:
+            print(dim_text(f"  Random Seed: {seed}"))
+        
+        # Apply overrides to get the final config
+        config = self.model.load_scenario(scenario_name)
+        
+        # For Monte Carlo, we need to be careful not to destroy distributions
+        if overrides:
+            # Team size override - preserve any existing distribution structure
+            if 'team_size' in overrides:
+                if isinstance(config['baseline'], dict):
+                    # Check if team_size has distribution info
+                    if isinstance(config['baseline'].get('team_size'), dict) and 'distribution' in config['baseline']['team_size']:
+                        # Preserve distribution, update central value
+                        config['baseline']['team_size']['value'] = overrides['team_size']
+                        # Optionally scale distribution around new value
+                        dist = config['baseline']['team_size']['distribution']
+                        if dist.get('type') == 'uniform':
+                            # Scale uniform distribution proportionally
+                            old_val = config['baseline']['team_size'].get('value', overrides['team_size'])
+                            if old_val > 0:
+                                scale_factor = overrides['team_size'] / old_val
+                                dist['min'] = dist.get('min', old_val * 0.8) * scale_factor
+                                dist['max'] = dist.get('max', old_val * 1.2) * scale_factor
+                    else:
+                        config['baseline']['team_size'] = overrides['team_size']
+                else:
+                    config['baseline'] = {'profile': config['baseline'], 'team_size': overrides['team_size']}
+            
+            # For scenario overrides (adoption, impact, costs), we can't preserve distributions
+            # since we're switching to a completely different scenario
+            # Log a warning if trying to use these with Monte Carlo
+            scenario_overrides_used = []
+            if 'adoption' in overrides:
+                config['adoption'] = {'scenario': overrides['adoption']}
+                scenario_overrides_used.append('adoption')
+            if 'impact' in overrides:
+                config['impact'] = {'scenario': overrides['impact']}
+                scenario_overrides_used.append('impact')
+            if 'costs' in overrides:
+                config['costs'] = {'scenario': overrides['costs']}
+                scenario_overrides_used.append('costs')
+            
+            # Warn if using scenario overrides that will lose distributions
+            if scenario_overrides_used:
+                print(warning(f"⚠️  Note: {', '.join(scenario_overrides_used)} overrides may not preserve distributions for Monte Carlo"))
+        
+        # Create parameter distributions with auto-generation for Monte Carlo
+        distributions = create_parameter_distributions_from_scenario(config, auto_generate=True)
+        
+        # Check if we have any actual distributions (not just deterministic values)
+        has_distributions = False
+        for param_name, dist in distributions.distributions.items():
+            if not hasattr(dist, 'is_deterministic') or not dist.is_deterministic:
+                # Check if this is not a Deterministic distribution
+                if dist.__class__.__name__ != 'Deterministic':
+                    has_distributions = True
+                    break
+        
+        if not has_distributions and overrides and any(k in overrides for k in ['adoption', 'impact', 'costs']):
+            print(warning("\n⚠️  Warning: No probability distributions found!"))
+            print(warning("   This scenario doesn't have Monte Carlo distributions defined."))
+            print(warning("   Consider using a Monte Carlo scenario (e.g., aggressive_enterprise_monte_carlo)"))
+            print(warning("   or remove scenario overrides to preserve distributions.\n"))
+            
+            # Still proceed but warn that results will have no variation
+            print(dim_text("   Proceeding with deterministic values (no uncertainty)...\n"))
+        
+        # Create and run Monte Carlo engine
+        from src.model.monte_carlo import MonteCarloEngine
+        engine = MonteCarloEngine(
+            model_runner=lambda cfg: self.model._run_scenario_with_config(cfg),
+            parameter_distributions=distributions,
+            iterations=iterations,
+            confidence_level=confidence,
+            random_seed=seed
+        )
+        
+        print(info("Running simulations..."))
+        results = engine.run(config)
+        
+        # Format the report
+        report = self._format_monte_carlo_report(results, scenario_name, config, overrides)
+        
+        return results, report
+    
+    def _format_combined_report(self, scenario_name: str, deterministic_results: Dict, 
+                                mc_results, overrides: Optional[Dict]) -> str:
+        """Format combined deterministic and Monte Carlo results"""
+        
+        report = f"# AI Development Impact Analysis\n\n"
+        report += f"## Scenario: {scenario_name}\n"
+        
+        # Show configuration
+        if overrides:
+            override_info = []
+            if 'team_size' in overrides:
+                override_info.append(f"Team Size: {overrides['team_size']}")
+            if 'adoption' in overrides:
+                override_info.append(f"Adoption: {overrides['adoption']}")
+            if 'impact' in overrides:
+                override_info.append(f"Impact: {overrides['impact']}")
+            if 'costs' in overrides:
+                override_info.append(f"Costs: {overrides['costs']}")
+            report += f"**Overrides:** {' | '.join(override_info)}\n"
+        
+        report += f"**Timeframe:** {deterministic_results.get('config', {}).get('timeframe_months', 24)} months\n\n"
+        
+        # Deterministic Results
+        report += "## Deterministic Analysis (Expected Values)\n\n"
+        report += f"- **NPV:** ${deterministic_results['npv']:,.0f}\n"
+        report += f"- **ROI:** {deterministic_results['roi_percent']:.1f}%\n"
+        report += f"- **Breakeven:** "
+        if deterministic_results['breakeven_month']:
+            report += f"Month {deterministic_results['breakeven_month']}\n"
+        else:
+            report += "Not reached within timeframe\n"
+        report += f"- **Peak Adoption:** {deterministic_results['peak_adoption']*100:.1f}%\n"
+        report += f"- **Total Value (3 years):** ${deterministic_results['total_value_3y']:,.0f}\n"
+        report += f"- **Total Cost (3 years):** ${deterministic_results['total_cost_3y']:,.0f}\n\n"
+        
+        # Monte Carlo Results
+        report += f"## Monte Carlo Analysis ({mc_results.iterations:,} iterations)\n\n"
+        report += "### Confidence Intervals (95%)\n\n"
+        report += f"- **NPV:** ${mc_results.npv_stats['p5']:,.0f} - ${mc_results.npv_stats['p95']:,.0f} (mean: ${mc_results.npv_stats['mean']:,.0f})\n"
+        report += f"- **ROI:** {mc_results.roi_stats['p5']:.0f}% - {mc_results.roi_stats['p95']:.0f}% (mean: {mc_results.roi_stats['mean']:.0f}%)\n"
+        report += f"- **Breakeven:** Month {mc_results.breakeven_stats['p5']:.0f}-{mc_results.breakeven_stats['p95']:.0f} (median: Month {mc_results.breakeven_stats['median']:.0f})\n"
+        report += f"- **Total Value:** ${mc_results.value_stats['p5']:,.0f} - ${mc_results.value_stats['p95']:,.0f}\n"
+        report += f"- **Total Cost:** ${mc_results.cost_stats['p5']:,.0f} - ${mc_results.cost_stats['p95']:,.0f}\n\n"
+        
+        # Risk Analysis
+        report += "### Risk Analysis\n\n"
+        report += f"- Probability of positive NPV: {mc_results.probability_positive_npv:.1%}\n"
+        report += f"- Probability of ROI > {deterministic_results['roi_percent']:.0f}%: {mc_results.probability_roi_above_target:.1%}\n"
+        report += f"- Probability of breakeven < 24 months: {mc_results.probability_breakeven_within_24_months:.1%}\n\n"
+        
+        # Sensitivity Analysis
+        if mc_results.parameter_importance:
+            report += "### Key Sensitivities\n\n"
+            report += "Parameters ranked by impact on NPV variance:\n\n"
+            for i, (param, importance) in enumerate(mc_results.parameter_importance[:5], 1):
+                param_name = param.replace('_', ' ').title()
+                report += f"{i}. {param_name}: {importance*100:.1f}% of variance\n"
+            report += "\n"
+        
+        # Comparison Table
+        report += "## Comparison\n\n"
+        report += "| Metric | Deterministic | Monte Carlo Mean | Std Dev | 95% CI |\n"
+        report += "|--------|--------------|------------------|---------|--------|\n"
+        report += f"| NPV | ${deterministic_results['npv']:,.0f} | ${mc_results.npv_stats['mean']:,.0f} | ${mc_results.npv_stats['std']:,.0f} | ${mc_results.npv_stats['p5']:,.0f} - ${mc_results.npv_stats['p95']:,.0f} |\n"
+        report += f"| ROI | {deterministic_results['roi_percent']:.1f}% | {mc_results.roi_stats['mean']:.1f}% | {mc_results.roi_stats['std']:.1f}% | {mc_results.roi_stats['p5']:.0f}% - {mc_results.roi_stats['p95']:.0f}% |\n"
+        
+        if deterministic_results['breakeven_month']:
+            report += f"| Breakeven | Month {deterministic_results['breakeven_month']} | Month {mc_results.breakeven_stats['mean']:.0f} | {mc_results.breakeven_stats['std']:.1f} | Month {mc_results.breakeven_stats['p5']:.0f}-{mc_results.breakeven_stats['p95']:.0f} |\n"
+        
+        report += "\n"
+        
+        # Convergence status
+        if mc_results.convergence_achieved:
+            report += f"✅ **Monte Carlo convergence achieved** (runtime: {mc_results.runtime_seconds:.1f}s)\n"
+        else:
+            report += f"⚠️ **Monte Carlo convergence not fully achieved** - consider increasing iterations\n"
+        
+        return report
+    
+    def _format_monte_carlo_report(self, results, scenario_name: str, config: Dict, overrides: Optional[Dict]) -> str:
+        """Format Monte Carlo results into markdown report"""
+        
+        report = f"# Monte Carlo Analysis Report\n\n"
+        report += f"**Scenario:** {scenario_name}\n"
+        if overrides:
+            override_info = []
+            if 'team_size' in overrides:
+                override_info.append(f"team_size={overrides['team_size']}")
+            if 'adoption' in overrides:
+                override_info.append(f"adoption={overrides['adoption']}")
+            if 'impact' in overrides:
+                override_info.append(f"impact={overrides['impact']}")
+            if 'costs' in overrides:
+                override_info.append(f"costs={overrides['costs']}")
+            report += f"**Overrides:** {', '.join(override_info)}\n"
+        report += f"**Iterations:** {results.iterations:,}\n"
+        report += f"**Convergence:** {'✅ Achieved' if results.convergence_achieved else '⚠️ Not achieved'}\n\n"
+        
+        report += "## Key Metrics\n\n"
+        report += "### NPV Distribution\n"
+        report += f"- **Mean:** ${results.npv_stats['mean']:,.0f}\n"
+        report += f"- **Median:** ${results.npv_stats['median']:,.0f}\n"
+        report += f"- **Std Dev:** ${results.npv_stats['std']:,.0f}\n"
+        report += f"- **95% Confidence Interval:** ${results.npv_stats['p5']:,.0f} to ${results.npv_stats['p95']:,.0f}\n\n"
+        
+        report += "### ROI Distribution\n"
+        report += f"- **Mean:** {results.roi_stats['mean']:.1f}%\n"
+        report += f"- **Median:** {results.roi_stats['median']:.1f}%\n"
+        report += f"- **95% Confidence Interval:** {results.roi_stats['p5']:.1f}% to {results.roi_stats['p95']:.1f}%\n\n"
+        
+        report += "### Risk Metrics\n"
+        report += f"- **Probability of Positive NPV:** {results.probability_positive_npv:.1%}\n"
+        report += f"- **Probability of Breakeven within 24 months:** {results.probability_breakeven_within_24_months:.1%}\n"
+        report += f"- **Probability of ROI > 100%:** {results.probability_roi_above_target:.1%}\n\n"
+        
+        report += "### Breakeven Analysis\n"
+        report += f"- **Mean Breakeven:** Month {results.breakeven_stats['mean']:.1f}\n"
+        report += f"- **Median Breakeven:** Month {results.breakeven_stats['median']:.0f}\n"
+        report += f"- **90% Confidence:** Months {results.breakeven_stats['p10']:.0f} to {results.breakeven_stats['p90']:.0f}\n\n"
+        
+        if results.parameter_importance:
+            report += "## Parameter Sensitivity\n\n"
+            report += "Top 10 most influential parameters (by correlation with NPV):\n\n"
+            for i, (param, importance) in enumerate(results.parameter_importance[:10], 1):
+                report += f"{i}. **{param}**: {importance:.3f}\n"
+        
+        return report
     
     def run_sensitivity_analysis(self, scenario_name: str, n_samples: int = 512) -> tuple[Dict, str]:
         """
@@ -720,6 +998,29 @@ Examples:
     parser.add_argument('--batch-workers', type=int, default=4,
                        help='Number of parallel workers for batch processing (default: 4)')
     
+    # Parameter override arguments
+    parser.add_argument('--team-size', type=int,
+                       help='Override team size (e.g., 10, 50, 100)')
+    parser.add_argument('--adoption', 
+                       choices=['organic', 'mandated', 'grassroots'],
+                       help='Override adoption scenario (organic: natural/peer-driven, mandated: management-driven, grassroots: developer-led)')
+    parser.add_argument('--impact',
+                       choices=['conservative', 'moderate', 'aggressive'],
+                       help='Override impact scenario (conservative: 10-20%%, moderate: 25-35%%, aggressive: 40-50%%)')
+    parser.add_argument('--costs',
+                       choices=['startup', 'enterprise', 'aggressive'],
+                       help='Override costs scenario (startup: $30/seat, enterprise: $50/seat, aggressive: $100/seat)')
+    
+    # Monte Carlo simulation arguments
+    parser.add_argument('--monte-carlo', '-mc', action='store_true',
+                       help='Run Monte Carlo simulation for uncertainty analysis')
+    parser.add_argument('--iterations', type=int, default=1000,
+                       help='Number of Monte Carlo iterations (default: 1000)')
+    parser.add_argument('--confidence', type=float, default=0.95,
+                       help='Confidence level for intervals (default: 0.95)')
+    parser.add_argument('--seed', type=int, default=None,
+                       help='Random seed for reproducibility')
+    
     args = parser.parse_args()
     
     runner = AnalysisRunner()
@@ -772,6 +1073,53 @@ Examples:
             
             return
         
+        # Run Monte Carlo analysis if requested
+        if args.monte_carlo:
+            scenarios_to_analyze = args.scenarios if args.scenarios else ['moderate_enterprise']
+            
+            # Build overrides
+            overrides = {}
+            if args.team_size:
+                overrides['team_size'] = args.team_size
+            if args.adoption:
+                overrides['adoption'] = args.adoption
+            if args.impact:
+                overrides['impact'] = args.impact
+            if args.costs:
+                overrides['costs'] = args.costs
+            
+            for scenario in scenarios_to_analyze:
+                print(header(f"Monte Carlo Analysis: {scenario}"))
+                
+                try:
+                    results, report = runner.run_monte_carlo(
+                        scenario,
+                        overrides=overrides if overrides else None,
+                        iterations=args.iterations,
+                        confidence=args.confidence,
+                        seed=args.seed
+                    )
+                    
+                    # Save Monte Carlo report
+                    filename = runner.generate_filename(
+                        f"monte_carlo_{scenario}.md" if args.output is None else args.output
+                    )
+                    
+                    with open(filename, 'w') as f:
+                        f.write(report)
+                    
+                    print(f"\n{success('✓')} Monte Carlo analysis saved to: {info(filename)}")
+                    print("\nKey risk metrics:")
+                    print(f"  • Probability of positive NPV: {results.probability_positive_npv:.1%}")
+                    print(f"  • Probability of breakeven < 24 months: {results.probability_breakeven_within_24_months:.1%}")
+                    print(f"  • Mean NPV: ${results.npv_stats['mean']:,.0f}")
+                    print(f"  • 95% Confidence Interval: ${results.npv_stats['p5']:,.0f} to ${results.npv_stats['p95']:,.0f}")
+                    
+                except Exception as e:
+                    print(f"{error('✗')} Error running Monte Carlo analysis: {e}")
+            
+            return
+        
         # Run sensitivity analysis if requested
         if args.sensitivity:
             scenarios_to_analyze = args.scenarios if args.scenarios else ['moderate_enterprise']
@@ -820,7 +1168,19 @@ Examples:
         elif len(args.scenarios) == 1:
             analysis_type = "Single Scenario"
             scenario_names = args.scenarios
-            results_data, content = runner.run_single_scenario(args.scenarios[0])
+            
+            # Build overrides dict from command line arguments
+            overrides = {}
+            if args.team_size:
+                overrides['team_size'] = args.team_size
+            if args.adoption:
+                overrides['adoption'] = args.adoption
+            if args.impact:
+                overrides['impact'] = args.impact
+            if args.costs:
+                overrides['costs'] = args.costs
+            
+            results_data, content = runner.run_single_scenario(args.scenarios[0], overrides if overrides else None)
         
         else:
             analysis_type = "Multiple Scenarios"
@@ -828,7 +1188,7 @@ Examples:
             results_data, content = runner.run_multiple_scenarios(args.scenarios)
         
         # Format and save output
-        formatted_content = runner.format_final_output(results_data, scenario_names, analysis_type)
+        formatted_content = content  # Use the combined report we already generated
         filename = runner.generate_filename(args.output)
         runner.save_and_display_results(formatted_content, filename)
         

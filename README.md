@@ -11,7 +11,8 @@ A data-driven framework for evaluating the ROI of AI development tools in your o
 📈 **Sensitivity Analysis** - Identify which parameters matter most  
 🎯 **Industry Templates** - Pre-configured scenarios for different company types  
 📝 **Comprehensive Reports** - Export to Markdown, JSON, or plain text  
-🔍 **Version Management** - Track model evolution and ensure reproducibility
+🔍 **Version Management** - Track model evolution and ensure reproducibility  
+🔧 **Constraint Solver** - Optimize parameters with business constraints (NEW)
 
 ## Quick Start
 
@@ -63,7 +64,33 @@ python run_analysis.py --sensitivity moderate_enterprise
 
 # Batch processing
 python run_analysis.py --batch src/batch/batch_config.yaml
+
+# Parameter overrides (NEW)
+python run_analysis.py aggressive_startup --team-size 50
+python run_analysis.py moderate_enterprise --adoption grassroots
+python run_analysis.py conservative_startup --impact aggressive --costs enterprise
+
+# Combined overrides
+python run_analysis.py aggressive_startup --team-size 50 --adoption mandated --impact aggressive
 ```
+
+### Parameter Override Options
+
+You can customize any scenario without creating new YAML files using command-line overrides:
+
+- **`--team-size N`**: Override team size (e.g., 10, 50, 100, 200)
+- **`--adoption`**: Override adoption scenario
+  - `organic`: Natural, peer-driven adoption (5% initial, 15% early adopters)
+  - `mandated`: Management-driven adoption (20% initial, 30% early adopters)
+  - `grassroots`: Bottom-up developer-led (10% initial, 20% early adopters)
+- **`--impact`**: Override impact scenario
+  - `conservative`: Cautious estimates (10-20% improvements)
+  - `moderate`: Balanced projections (25-35% improvements)
+  - `aggressive`: Optimistic targets (40-50% improvements)
+- **`--costs`**: Override costs scenario
+  - `startup`: Low budget ($30/seat, 200K tokens/month)
+  - `enterprise`: Higher investment ($50/seat, 500K tokens/month)
+  - `aggressive`: Premium tier ($100/seat, 1M tokens/month)
 
 ## Pre-configured Scenarios
 
@@ -72,6 +99,58 @@ python run_analysis.py --batch src/batch/batch_config.yaml
 - **Aggressive Scale-up**: Fast-growing team (20-50), grassroots adoption, high impact
 - **Custom**: Fully configurable parameters via interactive mode or YAML
 
+## Constraint-Based Optimization (NEW)
+
+### Parameter Optimization
+Find optimal parameters given business constraints:
+
+```bash
+# Maximize NPV with budget constraint
+python optimize.py --objective max_npv --budget 10000
+
+# Maximize ROI with team size constraints
+python optimize.py --objective max_roi --min-team 10 --max-team 50
+
+# Balanced optimization with multiple constraints
+python optimize.py --objective balanced --budget 20000 --min-roi 2.0
+
+# Minimize cost while maintaining minimum ROI
+python optimize.py --objective min_cost --min-roi 1.5
+```
+
+### Constraint Validation
+Validate scenarios against business constraints:
+
+```bash
+# Validate a specific scenario
+python validate_constraints.py moderate_enterprise
+
+# Validate all scenarios
+python validate_constraints.py --all
+
+# Detailed validation with warnings
+python validate_constraints.py --all --verbose
+
+# Strict mode (treat warnings as errors)
+python validate_constraints.py --all --strict
+```
+
+### Available Constraints
+- **Budget**: Maximum monthly/total cost limits
+- **Team Size**: Minimum/maximum team size bounds
+- **Team Composition**: Valid role distribution ratios
+- **Adoption**: Realistic adoption rates and plateaus
+- **Impact**: Maximum feasible improvement percentages
+- **ROI**: Minimum acceptable return thresholds
+- **Timeframe**: Analysis period constraints
+
+### Optimization Objectives
+- `max_npv`: Maximize Net Present Value
+- `max_roi`: Maximize Return on Investment
+- `min_cost`: Minimize total costs
+- `max_adoption`: Maximize adoption success
+- `balanced`: Multi-objective balanced optimization
+
 ## Project Structure
 
 ```
@@ -79,6 +158,8 @@ python run_analysis.py --batch src/batch/batch_config.yaml
 ├── interactive.py          # Interactive mode
 ├── run_analysis.py         # CLI analysis tool
 ├── reproduce_results.py    # Result reproduction
+├── optimize.py             # Constraint optimization CLI
+├── validate_constraints.py # Constraint validation CLI
 ├── docs/                   # Documentation
 │   ├── technical/         # Technical docs
 │   ├── usage/            # Usage guides
@@ -87,7 +168,12 @@ python run_analysis.py --batch src/batch/batch_config.yaml
 │   ├── model/            # Core model
 │   ├── scenarios/        # Configurations
 │   ├── interactive/      # Interactive UI
-│   └── analysis/         # Analysis tools
+│   ├── analysis/         # Analysis tools
+│   └── constraints/      # Constraint solver framework
+│       ├── constraint_solver.py      # OR-Tools solver interface
+│       ├── business_constraints.py   # Business rules
+│       ├── optimization_objectives.py # Optimization goals
+│       └── constraint_validator.py   # Validation utilities
 └── outputs/              # Generated reports
 ```
 
