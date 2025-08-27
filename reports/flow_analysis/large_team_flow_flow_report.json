@@ -1,0 +1,172 @@
+{
+  "scenario_name": "large_team_flow",
+  "timestamp": "2025-08-27T13:49:58.226715",
+  "configuration": {
+    "team_size": 200,
+    "feature_value": 10000,
+    "urgency_factor": 0.15,
+    "cost_of_delay_per_day": 1500.0,
+    "test_automation": 0.7,
+    "deployment_frequency": "weekly"
+  },
+  "flow_metrics": {
+    "flow_efficiency": 0.6087893149504523,
+    "total_lead_time": 7.253125000000002,
+    "value_add_time": 4.415625,
+    "wait_time": 2.8375000000000012,
+    "throughput_per_month": 2.074074074074074
+  },
+  "queue_analysis": {
+    "stage_queues": {
+      "requirements": {
+        "utilization": 0.3950617283950617,
+        "avg_queue_length": 0.25799949609473416,
+        "avg_wait_time": 3.7317784256559765,
+        "daily_cost": 386.99924414210125
+      },
+      "design": {
+        "utilization": 0.47138047138047134,
+        "avg_queue_length": 0.42033927384245845,
+        "avg_wait_time": 6.079907353792703,
+        "daily_cost": 630.5089107636877
+      },
+      "coding": {
+        "utilization": 0.5530864197530864,
+        "avg_queue_length": 0.684482641020394,
+        "avg_wait_time": 9.900552486187843,
+        "daily_cost": 1026.723961530591
+      },
+      "testing": {
+        "utilization": 1.0,
+        "avg_queue_length": Infinity,
+        "avg_wait_time": Infinity,
+        "daily_cost": 999999
+      },
+      "code_review": {
+        "utilization": 0.6337448559670782,
+        "avg_queue_length": 1.0965922226846072,
+        "avg_wait_time": 15.861423220973784,
+        "daily_cost": 1644.8883340269108
+      },
+      "deployment": {
+        "utilization": 0.2074074074074074,
+        "avg_queue_length": 0.0542748355832468,
+        "avg_wait_time": 0.7850467289719627,
+        "daily_cost": 81.4122533748702
+      },
+      "monitoring": {
+        "utilization": 0.1037037037037037,
+        "avg_queue_length": 0.011998775635139272,
+        "avg_wait_time": 0.1735537190082645,
+        "daily_cost": 17.99816345270891
+      }
+    },
+    "total_daily_queue_cost": 3788.5308672908695,
+    "monthly_queue_cost": 113655.92601872608,
+    "queue_cost_per_feature": 1826.6130967295264
+  },
+  "batch_size_optimization": {
+    "requirements": {
+      "current_batch": 5,
+      "optimal_batch": 1,
+      "current_delay_cost": 15000.0,
+      "optimal_delay_cost": 0.0,
+      "savings": 15000.0
+    },
+    "coding": {
+      "current_batch": 1,
+      "optimal_batch": 1,
+      "current_delay_cost": 0.0,
+      "optimal_delay_cost": 0.0,
+      "savings": 0.0
+    },
+    "code_review": {
+      "current_batch": 3,
+      "optimal_batch": 1,
+      "current_delay_cost": 4500.0,
+      "optimal_delay_cost": 0.0,
+      "savings": 4500.0
+    },
+    "testing": {
+      "current_batch": 2,
+      "optimal_batch": 1,
+      "current_delay_cost": 1500.0,
+      "optimal_delay_cost": 0.0,
+      "savings": 1500.0
+    },
+    "deployment": {
+      "current_batch": 10,
+      "optimal_batch": 1,
+      "current_delay_cost": 67500.0,
+      "optimal_delay_cost": 0.0,
+      "savings": 67500.0
+    }
+  },
+  "wip_recommendations": {
+    "current_wip": 200,
+    "recommended_wip": 2892.857142857143,
+    "lead_time_impact": "2892.9 days with optimal WIP"
+  },
+  "variability_impact": [
+    {
+      "scenario": "Low",
+      "coefficient_of_variation": 0.5,
+      "queue_length": 4.000000000000002,
+      "wait_time": 57.85714285714289,
+      "daily_cost": 6000.000000000003
+    },
+    {
+      "scenario": "Typical",
+      "coefficient_of_variation": 1.0,
+      "queue_length": 6.400000000000003,
+      "wait_time": 92.57142857142863,
+      "daily_cost": 9600.000000000004
+    },
+    {
+      "scenario": "High",
+      "coefficient_of_variation": 1.5,
+      "queue_length": 10.400000000000006,
+      "wait_time": 150.42857142857153,
+      "daily_cost": 15600.00000000001
+    },
+    {
+      "scenario": "Chaotic",
+      "coefficient_of_variation": 2.0,
+      "queue_length": 16.000000000000007,
+      "wait_time": 231.42857142857156,
+      "daily_cost": 24000.00000000001
+    }
+  ],
+  "economic_summary": {
+    "monthly_delay_cost": 22565.27777777778,
+    "monthly_queue_cost": 113655.92601872608,
+    "potential_batch_savings": 2655000.0,
+    "flow_improvement_potential": 39.12106850495477
+  },
+  "reinertsen_principles": [
+    {
+      "principle": "Batch Size Reduction",
+      "issue": "Large batches in requirements, code_review, deployment",
+      "recommendation": "Reduce batch sizes to improve flow",
+      "priority": "High"
+    },
+    {
+      "principle": "WIP Constraints",
+      "issue": "No WIP limits currently applied",
+      "recommendation": "Implement WIP limits using Little's Law",
+      "priority": "Medium"
+    },
+    {
+      "principle": "Accelerate Feedback",
+      "issue": "Long feedback loops increase risk",
+      "recommendation": "Implement faster feedback mechanisms",
+      "priority": "Medium"
+    },
+    {
+      "principle": "Manage Variability",
+      "issue": "High software development variability",
+      "recommendation": "Use smaller batches and safety capacity",
+      "priority": "Medium"
+    }
+  ]
+}

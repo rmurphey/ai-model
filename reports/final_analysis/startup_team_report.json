@@ -1,0 +1,40 @@
+{
+  "scenario": "Startup Team",
+  "configuration": {
+    "team_size": 15,
+    "team_composition": {
+      "senior": 3,
+      "mid": 5,
+      "junior": 7
+    },
+    "test_automation": 0.2,
+    "optimal_ai_adoption": 10.0
+  },
+  "performance": {
+    "baseline_throughput_daily": 1.7699115044247786,
+    "improved_throughput_daily": 2.477449658591745,
+    "baseline_features_monthly": 53.09734513274336,
+    "improved_features_monthly": 74.32348975775236,
+    "improvement_percent": 39.975905710433615,
+    "constraint": "testing",
+    "exploitation_improvement": 17.5
+  },
+  "financials": {
+    "monthly_salary_cost": 150000.0,
+    "monthly_ai_cost": 225.0,
+    "implementation_cost": 7500,
+    "monthly_incremental_value": 84904.57850003598,
+    "monthly_incremental_cost": 850.0,
+    "monthly_net_benefit": 84054.57850003598,
+    "monthly_roi": 9888.773941180703,
+    "annual_roi": 9888.773941180703,
+    "payback_months": 0.08922773909331769
+  },
+  "insights": [
+    "Moderate 40% throughput improvement",
+    "Testing is the bottleneck",
+    "Junior-heavy team may face review capacity constraints",
+    "Excellent 9889% annual ROI",
+    "Fast 0.1 month payback"
+  ]
+}

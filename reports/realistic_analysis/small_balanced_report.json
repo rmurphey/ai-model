@@ -1,0 +1,60 @@
+{
+  "scenario_name": "small_balanced",
+  "timestamp": "2025-08-27T14:26:28.679429",
+  "configuration": {
+    "team_size": 10,
+    "team_composition": {
+      "senior": 3,
+      "mid": 4,
+      "junior": 3
+    },
+    "senior_ratio": 0.3,
+    "junior_ratio": 0.3,
+    "test_automation": 0.5,
+    "deployment_frequency": "weekly",
+    "cost_per_seat": 150,
+    "avg_salary": 120000
+  },
+  "constraint_analysis": {
+    "constraint_stage": "testing",
+    "current_throughput": 1.9434289012892052,
+    "constraint_utilization": 1.0,
+    "improvement_potential": 0.55,
+    "exploitation_strategies": [
+      "Increase test parallelization",
+      "Implement smart test selection",
+      "Eliminate flaky tests"
+    ]
+  },
+  "throughput_metrics": {
+    "baseline_features_per_month": 5.0,
+    "actual_features_per_month": 3.4096812423229834,
+    "improvement_features": -1.5903187576770166,
+    "improvement_percent": -31.806375153540333,
+    "features_per_dev_month": 0.34096812423229833
+  },
+  "financial_metrics": {
+    "monthly_salary_cost": 100000.0,
+    "monthly_ai_cost": 150.0,
+    "total_monthly_cost": 100150.0,
+    "implementation_cost": 5000,
+    "monthly_baseline_value": 20000.0,
+    "monthly_improved_value": 13638.724969291934,
+    "monthly_incremental_value": -6361.275030708066,
+    "monthly_incremental_cost": 566.6666666666667,
+    "net_monthly_benefit": -6927.941697374733
+  },
+  "roi_metrics": {
+    "monthly_roi": -1222.5779465955409,
+    "annual_roi": -1222.577946595541,
+    "payback_months": 999,
+    "optimal_ai_adoption": 10.0
+  },
+  "key_insights": [
+    "Testing constraint with 50% automation - focus on test optimization",
+    "Low ROI of -1223% - consider alternatives",
+    "Slow payback of 999.0 months - patience required",
+    "55% improvement available at low cost"
+  ],
+  "summary": "\n## small_balanced - Summary\n\n**Team**: 10 developers (3 senior, 4 mid, 3 junior)\n\n**Constraint**: Testing\n\n**Performance**:\n- Baseline: 5.0 features/month\n- Optimized: 3.4 features/month  \n- Improvement: -32%\n\n**Financials**:\n- Monthly incremental value: $-6,361\n- Monthly incremental cost: $567\n- Net benefit: $-6,928/month\n\n**ROI**:\n- Monthly ROI: -1223%\n- Annual ROI: -1223%\n- Payback: 999.0 months\n- Optimal AI adoption: 10%\n\n**Key Insights**:\n- Testing constraint with 50% automation - focus on test optimization\n- Low ROI of -1223% - consider alternatives\n- Slow payback of 999.0 months - patience required\n- 55% improvement available at low cost\n"
+}

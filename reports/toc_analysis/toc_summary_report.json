@@ -1,0 +1,138 @@
+{
+  "generated_at": "2025-08-27T13:48:20.880684",
+  "total_scenarios": 10,
+  "scenarios_analyzed": 10,
+  "summary_table": [
+    {
+      "scenario": "startup_balanced",
+      "team_size": 10,
+      "constraint": "testing",
+      "current_throughput": 1.8150777248629706,
+      "exploitation_improvement": 46.20555624053255,
+      "optimal_ai_adoption": 10.0,
+      "monthly_profit": 955248.0141802072,
+      "roi_percent": 955248.0141802073,
+      "flow_efficiency": 0.6202425763278961
+    },
+    {
+      "scenario": "startup_junior_heavy",
+      "team_size": 10,
+      "constraint": "testing",
+      "current_throughput": 1.7570564954551382,
+      "exploitation_improvement": 46.20555624053255,
+      "optimal_ai_adoption": 10.0,
+      "monthly_profit": 924709.1201506134,
+      "roi_percent": 924709.1201506134,
+      "flow_efficiency": 0.6230018683828108
+    },
+    {
+      "scenario": "midsize_balanced",
+      "team_size": 50,
+      "constraint": "testing",
+      "current_throughput": 1.9434289012892052,
+      "exploitation_improvement": 46.20555624053255,
+      "optimal_ai_adoption": 10.0,
+      "monthly_profit": 1022154.372696895,
+      "roi_percent": 136287.24969291934,
+      "flow_efficiency": 0.6146010186757215
+    },
+    {
+      "scenario": "midsize_senior_heavy",
+      "team_size": 50,
+      "constraint": "testing",
+      "current_throughput": 2.091313800600476,
+      "exploitation_improvement": 46.20555624053255,
+      "optimal_ai_adoption": 10.0,
+      "monthly_profit": 1099742.1109650612,
+      "roi_percent": 109974.21109650613,
+      "flow_efficiency": 0.6087893149504523
+    },
+    {
+      "scenario": "midsize_automated",
+      "team_size": 50,
+      "constraint": "testing",
+      "current_throughput": 2.1740300274444384,
+      "exploitation_improvement": 46.20555624053255,
+      "optimal_ai_adoption": 10.0,
+      "monthly_profit": 1143528.9700060836,
+      "roi_percent": 152470.52933414446,
+      "flow_efficiency": 0.6058172346429346
+    },
+    {
+      "scenario": "enterprise_traditional",
+      "team_size": 200,
+      "constraint": "testing",
+      "current_throughput": 2.0146611479579115,
+      "exploitation_improvement": 46.20555624053255,
+      "optimal_ai_adoption": 10.0,
+      "monthly_profit": 1056396.7535841546,
+      "roi_percent": 26409.918839603863,
+      "flow_efficiency": 0.6117169125507803
+    },
+    {
+      "scenario": "enterprise_modern",
+      "team_size": 200,
+      "constraint": "testing",
+      "current_throughput": 2.1740300274444384,
+      "exploitation_improvement": 46.20555624053255,
+      "optimal_ai_adoption": 10.0,
+      "monthly_profit": 1139278.9700060838,
+      "roi_percent": 22785.57940012168,
+      "flow_efficiency": 0.6058172346429346
+    },
+    {
+      "scenario": "enterprise_junior_heavy",
+      "team_size": 200,
+      "constraint": "testing",
+      "current_throughput": 1.9434289012892052,
+      "exploitation_improvement": 46.20555624053255,
+      "optimal_ai_adoption": 10.0,
+      "monthly_profit": 1019904.372696895,
+      "roi_percent": 33996.812423229836,
+      "flow_efficiency": 0.6146010186757215
+    },
+    {
+      "scenario": "small_expert_team",
+      "team_size": 5,
+      "constraint": "testing",
+      "current_throughput": 2.27027027027027,
+      "exploitation_improvement": 46.20555624053255,
+      "optimal_ai_adoption": 50.0,
+      "monthly_profit": 1194184.0596523525,
+      "roi_percent": 159224.54128698033,
+      "flow_efficiency": 0.6027996500437445
+    },
+    {
+      "scenario": "large_junior_army",
+      "team_size": 100,
+      "constraint": "testing",
+      "current_throughput": 1.8150777248629706,
+      "exploitation_improvement": 46.20555624053255,
+      "optimal_ai_adoption": 10.0,
+      "monthly_profit": 954548.0141802072,
+      "roi_percent": 119318.50177252591,
+      "flow_efficiency": 0.6202425763278961
+    }
+  ],
+  "key_findings": {
+    "constraint_distribution": {
+      "testing": 10
+    },
+    "average_exploitation_improvement": 46.205556240532545,
+    "average_roi": 264042.4478176852,
+    "best_scenario": {
+      "name": "small_expert_team",
+      "monthly_profit": 1194184.0596523525,
+      "constraint": "testing"
+    },
+    "worst_scenario": {
+      "name": "startup_junior_heavy",
+      "monthly_profit": 924709.1201506134,
+      "constraint": "testing"
+    },
+    "common_insights": [
+      "Testing is the constraint in 10/10 scenarios",
+      "Average exploitation improvement: 46.2% at $0 cost"
+    ]
+  }
+}

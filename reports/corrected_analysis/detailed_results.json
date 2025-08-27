@@ -1,0 +1,389 @@
+[
+  {
+    "scenario": "Small Balanced",
+    "team": {
+      "size": 10,
+      "composition": "3S/4M/3J",
+      "test_automation": "50%"
+    },
+    "optimization": {
+      "constraint": "Testing",
+      "exploitation_improvement": "17.5%",
+      "total_improvement": "40.4%",
+      "optimal_ai_adoption": "10%"
+    },
+    "throughput": {
+      "baseline_monthly": "58.5",
+      "improved_monthly": "82.2",
+      "incremental_features": "23.7"
+    },
+    "financials": {
+      "monthly_value_gain": "$71,011",
+      "monthly_cost": "$1,900",
+      "monthly_net": "$69,111",
+      "implementation": "$21,000",
+      "monthly_roi": "3637%",
+      "annual_roi": "3637%",
+      "payback": "0.3 months"
+    },
+    "raw_financials": {
+      "baseline_features_monthly": 58.536585365853654,
+      "improved_features_monthly": 82.20704252453338,
+      "incremental_features": 23.670457158679724,
+      "feature_value": 3000,
+      "monthly_salary_cost": 100000.0,
+      "monthly_ai_cost": 150.0,
+      "implementation_cost": 21000.0,
+      "monthly_incremental_value": 71011.37147603917,
+      "monthly_incremental_cost": 1900.0,
+      "monthly_net_benefit": 69111.37147603917,
+      "monthly_roi": 3637.4406040020617,
+      "annual_roi": 3637.4406040020617,
+      "payback_months": 0.3038573761668248
+    }
+  },
+  {
+    "scenario": "Small Junior",
+    "team": {
+      "size": 10,
+      "composition": "1S/3M/6J",
+      "test_automation": "30%"
+    },
+    "optimization": {
+      "constraint": "Testing",
+      "exploitation_improvement": "17.5%",
+      "total_improvement": "40.1%",
+      "optimal_ai_adoption": "10%"
+    },
+    "throughput": {
+      "baseline_monthly": "54.8",
+      "improved_monthly": "76.8",
+      "incremental_features": "22.0"
+    },
+    "financials": {
+      "monthly_value_gain": "$65,950",
+      "monthly_cost": "$1,900",
+      "monthly_net": "$64,050",
+      "implementation": "$21,000",
+      "monthly_roi": "3371%",
+      "annual_roi": "3371%",
+      "payback": "0.3 months"
+    },
+    "raw_financials": {
+      "baseline_features_monthly": 54.79452054794521,
+      "improved_features_monthly": 76.77778776170365,
+      "incremental_features": 21.983267213758438,
+      "feature_value": 3000,
+      "monthly_salary_cost": 100000.0,
+      "monthly_ai_cost": 150.0,
+      "implementation_cost": 21000.0,
+      "monthly_incremental_value": 65949.80164127532,
+      "monthly_incremental_cost": 1900.0,
+      "monthly_net_benefit": 64049.80164127532,
+      "monthly_roi": 3371.0421916460696,
+      "annual_roi": 3371.0421916460696,
+      "payback_months": 0.32786986785087974
+    }
+  },
+  {
+    "scenario": "Medium Balanced",
+    "team": {
+      "size": 50,
+      "composition": "12S/21M/17J",
+      "test_automation": "50%"
+    },
+    "optimization": {
+      "constraint": "Testing",
+      "exploitation_improvement": "17.5%",
+      "total_improvement": "40.4%",
+      "optimal_ai_adoption": "10%"
+    },
+    "throughput": {
+      "baseline_monthly": "58.5",
+      "improved_monthly": "82.2",
+      "incremental_features": "23.7"
+    },
+    "financials": {
+      "monthly_value_gain": "$71,011",
+      "monthly_cost": "$9,500",
+      "monthly_net": "$61,511",
+      "implementation": "$105,000",
+      "monthly_roi": "647%",
+      "annual_roi": "647%",
+      "payback": "1.7 months"
+    },
+    "raw_financials": {
+      "baseline_features_monthly": 58.536585365853654,
+      "improved_features_monthly": 82.20704252453338,
+      "incremental_features": 23.670457158679724,
+      "feature_value": 3000,
+      "monthly_salary_cost": 500000.0,
+      "monthly_ai_cost": 750.0,
+      "implementation_cost": 105000.0,
+      "monthly_incremental_value": 71011.37147603917,
+      "monthly_incremental_cost": 9500.0,
+      "monthly_net_benefit": 61511.371476039174,
+      "monthly_roi": 647.4881208004123,
+      "annual_roi": 647.4881208004123,
+      "payback_months": 1.7070014451051732
+    }
+  },
+  {
+    "scenario": "Medium Senior",
+    "team": {
+      "size": 50,
+      "composition": "20S/20M/10J",
+      "test_automation": "70%"
+    },
+    "optimization": {
+      "constraint": "Testing",
+      "exploitation_improvement": "17.5%",
+      "total_improvement": "40.8%",
+      "optimal_ai_adoption": "10%"
+    },
+    "throughput": {
+      "baseline_monthly": "62.8",
+      "improved_monthly": "88.5",
+      "incremental_features": "25.6"
+    },
+    "financials": {
+      "monthly_value_gain": "$76,906",
+      "monthly_cost": "$9,500",
+      "monthly_net": "$67,406",
+      "implementation": "$105,000",
+      "monthly_roi": "710%",
+      "annual_roi": "710%",
+      "payback": "1.6 months"
+    },
+    "raw_financials": {
+      "baseline_features_monthly": 62.82722513089005,
+      "improved_features_monthly": 88.46257376540015,
+      "incremental_features": 25.635348634510102,
+      "feature_value": 3000,
+      "monthly_salary_cost": 500000.0,
+      "monthly_ai_cost": 750.0,
+      "implementation_cost": 105000.0,
+      "monthly_incremental_value": 76906.0459035303,
+      "monthly_incremental_cost": 9500.0,
+      "monthly_net_benefit": 67406.0459035303,
+      "monthly_roi": 709.537325300319,
+      "annual_roi": 709.5373253003189,
+      "payback_months": 1.5577237708064515
+    }
+  },
+  {
+    "scenario": "Medium Automated",
+    "team": {
+      "size": 50,
+      "composition": "15S/20M/15J",
+      "test_automation": "80%"
+    },
+    "optimization": {
+      "constraint": "Testing",
+      "exploitation_improvement": "17.5%",
+      "total_improvement": "41.0%",
+      "optimal_ai_adoption": "10%"
+    },
+    "throughput": {
+      "baseline_monthly": "65.2",
+      "improved_monthly": "92.0",
+      "incremental_features": "26.7"
+    },
+    "financials": {
+      "monthly_value_gain": "$80,232",
+      "monthly_cost": "$9,500",
+      "monthly_net": "$70,732",
+      "implementation": "$105,000",
+      "monthly_roi": "745%",
+      "annual_roi": "745%",
+      "payback": "1.5 months"
+    },
+    "raw_financials": {
+      "baseline_features_monthly": 65.21739130434784,
+      "improved_features_monthly": 91.96147016089974,
+      "incremental_features": 26.744078856551894,
+      "feature_value": 3000,
+      "monthly_salary_cost": 500000.0,
+      "monthly_ai_cost": 750.0,
+      "implementation_cost": 105000.0,
+      "monthly_incremental_value": 80232.23656965568,
+      "monthly_incremental_cost": 9500.0,
+      "monthly_net_benefit": 70732.23656965568,
+      "monthly_roi": 744.5498586279546,
+      "annual_roi": 744.5498586279546,
+      "payback_months": 1.484471651007361
+    }
+  },
+  {
+    "scenario": "Large Enterprise",
+    "team": {
+      "size": 200,
+      "composition": "60S/80M/60J",
+      "test_automation": "60%"
+    },
+    "optimization": {
+      "constraint": "Testing",
+      "exploitation_improvement": "17.5%",
+      "total_improvement": "40.6%",
+      "optimal_ai_adoption": "10%"
+    },
+    "throughput": {
+      "baseline_monthly": "60.6",
+      "improved_monthly": "85.2",
+      "incremental_features": "24.6"
+    },
+    "financials": {
+      "monthly_value_gain": "$73,842",
+      "monthly_cost": "$38,000",
+      "monthly_net": "$35,842",
+      "implementation": "$420,000",
+      "monthly_roi": "94%",
+      "annual_roi": "94%",
+      "payback": "11.7 months"
+    },
+    "raw_financials": {
+      "baseline_features_monthly": 60.60606060606061,
+      "improved_features_monthly": 85.22016655861965,
+      "incremental_features": 24.614105952559044,
+      "feature_value": 3000,
+      "monthly_salary_cost": 2000000.0,
+      "monthly_ai_cost": 3000.0,
+      "implementation_cost": 420000.0,
+      "monthly_incremental_value": 73842.31785767713,
+      "monthly_incremental_cost": 38000.0,
+      "monthly_net_benefit": 35842.31785767713,
+      "monthly_roi": 94.32188909915034,
+      "annual_roi": 94.32188909915035,
+      "payback_months": 11.717992169695561
+    }
+  },
+  {
+    "scenario": "Large Modern",
+    "team": {
+      "size": 200,
+      "composition": "70S/80M/50J",
+      "test_automation": "80%"
+    },
+    "optimization": {
+      "constraint": "Testing",
+      "exploitation_improvement": "17.5%",
+      "total_improvement": "41.0%",
+      "optimal_ai_adoption": "10%"
+    },
+    "throughput": {
+      "baseline_monthly": "65.2",
+      "improved_monthly": "92.0",
+      "incremental_features": "26.7"
+    },
+    "financials": {
+      "monthly_value_gain": "$80,232",
+      "monthly_cost": "$38,000",
+      "monthly_net": "$42,232",
+      "implementation": "$420,000",
+      "monthly_roi": "111%",
+      "annual_roi": "111%",
+      "payback": "9.9 months"
+    },
+    "raw_financials": {
+      "baseline_features_monthly": 65.21739130434784,
+      "improved_features_monthly": 91.96147016089974,
+      "incremental_features": 26.744078856551894,
+      "feature_value": 3000,
+      "monthly_salary_cost": 2000000.0,
+      "monthly_ai_cost": 3000.0,
+      "implementation_cost": 420000.0,
+      "monthly_incremental_value": 80232.23656965568,
+      "monthly_incremental_cost": 38000.0,
+      "monthly_net_benefit": 42232.23656965568,
+      "monthly_roi": 111.13746465698864,
+      "annual_roi": 111.13746465698864,
+      "payback_months": 9.94500964464133
+    }
+  },
+  {
+    "scenario": "Tiny Expert",
+    "team": {
+      "size": 5,
+      "composition": "4S/1M/0J",
+      "test_automation": "80%"
+    },
+    "optimization": {
+      "constraint": "Testing",
+      "exploitation_improvement": "17.5%",
+      "total_improvement": "41.0%",
+      "optimal_ai_adoption": "10%"
+    },
+    "throughput": {
+      "baseline_monthly": "65.2",
+      "improved_monthly": "92.0",
+      "incremental_features": "26.7"
+    },
+    "financials": {
+      "monthly_value_gain": "$80,232",
+      "monthly_cost": "$950",
+      "monthly_net": "$79,282",
+      "implementation": "$10,500",
+      "monthly_roi": "8345%",
+      "annual_roi": "8345%",
+      "payback": "0.1 months"
+    },
+    "raw_financials": {
+      "baseline_features_monthly": 65.21739130434784,
+      "improved_features_monthly": 91.96147016089974,
+      "incremental_features": 26.744078856551894,
+      "feature_value": 3000,
+      "monthly_salary_cost": 50000.0,
+      "monthly_ai_cost": 75.0,
+      "implementation_cost": 10500.0,
+      "monthly_incremental_value": 80232.23656965568,
+      "monthly_incremental_cost": 950.0,
+      "monthly_net_benefit": 79282.23656965568,
+      "monthly_roi": 8345.498586279546,
+      "annual_roi": 8345.498586279546,
+      "payback_months": 0.13243824158233633
+    }
+  },
+  {
+    "scenario": "Startup",
+    "team": {
+      "size": 15,
+      "composition": "3S/5M/7J",
+      "test_automation": "20%"
+    },
+    "optimization": {
+      "constraint": "Testing",
+      "exploitation_improvement": "17.5%",
+      "total_improvement": "40.0%",
+      "optimal_ai_adoption": "10%"
+    },
+    "throughput": {
+      "baseline_monthly": "53.1",
+      "improved_monthly": "74.3",
+      "incremental_features": "21.2"
+    },
+    "financials": {
+      "monthly_value_gain": "$63,678",
+      "monthly_cost": "$2,850",
+      "monthly_net": "$60,828",
+      "implementation": "$31,500",
+      "monthly_roi": "2134%",
+      "annual_roi": "2134%",
+      "payback": "0.5 months"
+    },
+    "raw_financials": {
+      "baseline_features_monthly": 53.09734513274336,
+      "improved_features_monthly": 74.32348975775236,
+      "incremental_features": 21.226144625009,
+      "feature_value": 3000,
+      "monthly_salary_cost": 150000.0,
+      "monthly_ai_cost": 225.0,
+      "implementation_cost": 31500.0,
+      "monthly_incremental_value": 63678.433875026996,
+      "monthly_incremental_cost": 2850.0,
+      "monthly_net_benefit": 60828.433875026996,
+      "monthly_roi": 2134.331013158842,
+      "annual_roi": 2134.331013158842,
+      "payback_months": 0.5178499263143493
+    }
+  }
+]

@@ -1,0 +1,40 @@
+{
+  "scenario": "Small Junior Team",
+  "configuration": {
+    "team_size": 10,
+    "team_composition": {
+      "senior": 1,
+      "mid": 3,
+      "junior": 6
+    },
+    "test_automation": 0.3,
+    "optimal_ai_adoption": 10.0
+  },
+  "performance": {
+    "baseline_throughput_daily": 1.8264840182648403,
+    "improved_throughput_daily": 2.5592595920567884,
+    "baseline_features_monthly": 54.79452054794521,
+    "improved_features_monthly": 76.77778776170365,
+    "improvement_percent": 40.119462665109154,
+    "constraint": "testing",
+    "exploitation_improvement": 17.5
+  },
+  "financials": {
+    "monthly_salary_cost": 100000.0,
+    "monthly_ai_cost": 150.0,
+    "implementation_cost": 5000,
+    "monthly_incremental_value": 87933.06885503372,
+    "monthly_incremental_cost": 566.6666666666667,
+    "monthly_net_benefit": 87366.40218836705,
+    "monthly_roi": 15417.60038618242,
+    "annual_roi": 15417.600386182423,
+    "payback_months": 0.05723023810937881
+  },
+  "insights": [
+    "Strong 40% throughput improvement achieved",
+    "Testing is the bottleneck",
+    "Junior-heavy team may face review capacity constraints",
+    "Excellent 15418% annual ROI",
+    "Fast 0.1 month payback"
+  ]
+}

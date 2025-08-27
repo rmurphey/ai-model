@@ -1,0 +1,103 @@
+{
+  "scenario_name": "midsize_balanced",
+  "timestamp": "2025-08-27T13:48:20.878465",
+  "configuration": {
+    "team_size": 50,
+    "senior_ratio": 0.25,
+    "junior_ratio": 0.35,
+    "mid_ratio": 0.4,
+    "team_composition": {
+      "senior": 12,
+      "mid": 21,
+      "junior": 17
+    },
+    "test_automation": 0.5,
+    "deployment_frequency": "weekly",
+    "cost_per_seat": 150
+  },
+  "constraint_analysis": {
+    "constraint_stage": "testing",
+    "constraint_type": "testing",
+    "current_throughput": 1.9434289012892052,
+    "constraint_utilization": 1.0,
+    "improvement_potential": 0.55,
+    "cost_of_constraint_daily": 3446.256384716674,
+    "stage_throughputs": {
+      "requirements": 5.05,
+      "design": 4.08,
+      "coding": 3.1500000000000004,
+      "testing": 1.9434289012892052,
+      "code_review": 3.8431372549019605,
+      "deployment": 10.0,
+      "monitoring": 20.0
+    },
+    "queue_buildup": {
+      "requirements": 3.106571098710795,
+      "design": 2.136571098710795,
+      "coding": 1.2065710987107952,
+      "testing": 0.0,
+      "code_review": 1.8997083536127553,
+      "deployment": 8.056571098710794,
+      "monitoring": 18.056571098710794
+    }
+  },
+  "exploitation": {
+    "original_throughput": 1.9434289012892052,
+    "exploited_throughput": 2.8414010352691528,
+    "improvement_percent": 46.20555624053255,
+    "cost": 0,
+    "timeline_days": 30,
+    "strategies": [
+      "Increase test parallelization",
+      "Implement smart test selection",
+      "Eliminate flaky tests",
+      "Optimize test environments",
+      "Use risk-based testing prioritization"
+    ]
+  },
+  "elevation": {
+    "strategies": [
+      "Invest in test automation infrastructure",
+      "Add dedicated test engineers",
+      "Implement parallel testing infrastructure",
+      "Add performance testing capacity"
+    ],
+    "estimated_cost": 75000,
+    "estimated_impact": 0.5
+  },
+  "financial_impact": {
+    "optimal_ai_adoption": 10.0,
+    "final_throughput": 3.4096812423229834,
+    "daily_value": 34096.812423229836,
+    "monthly_cost": 750.0,
+    "net_value_per_day": 34071.812423229836,
+    "monthly_profit": 1022154.372696895,
+    "roi_percent": 136287.24969291934
+  },
+  "flow_metrics": {
+    "flow_efficiency": 0.6146010186757215,
+    "queue_costs": {
+      "queue_costs_by_stage": {
+        "requirements": 0.0,
+        "design": 0.0,
+        "coding": 0.0,
+        "testing": 0.0,
+        "code_review": 0.0,
+        "deployment": 0.0,
+        "monitoring": 0.0
+      },
+      "total_daily_queue_cost": 0.0,
+      "monthly_queue_cost": 0.0,
+      "queue_cost_per_feature": 0.0
+    },
+    "lead_time_days": 7.53555
+  },
+  "key_insights": [
+    "Testing constraint despite 50% automation",
+    "Consider parallel test execution infrastructure",
+    "High queue buildup: 34.5 features waiting",
+    "Implement WIP limits to prevent queue accumulation",
+    "High exploitation potential: 55% improvement possible at $0 cost",
+    "Exploit constraint before considering capacity additions"
+  ]
+}

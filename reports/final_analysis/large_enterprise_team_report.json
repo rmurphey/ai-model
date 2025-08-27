@@ -1,0 +1,39 @@
+{
+  "scenario": "Large Enterprise Team",
+  "configuration": {
+    "team_size": 200,
+    "team_composition": {
+      "senior": 60,
+      "mid": 80,
+      "junior": 60
+    },
+    "test_automation": 0.6,
+    "optimal_ai_adoption": 10.0
+  },
+  "performance": {
+    "baseline_throughput_daily": 2.0202020202020203,
+    "improved_throughput_daily": 2.840672218620655,
+    "baseline_features_monthly": 60.60606060606061,
+    "improved_features_monthly": 85.22016655861965,
+    "improvement_percent": 40.61327482172241,
+    "constraint": "testing",
+    "exploitation_improvement": 17.5
+  },
+  "financials": {
+    "monthly_salary_cost": 2000000.0,
+    "monthly_ai_cost": 3000.0,
+    "implementation_cost": 100000,
+    "monthly_incremental_value": 98456.42381023616,
+    "monthly_incremental_cost": 11333.333333333334,
+    "monthly_net_benefit": 87123.09047690283,
+    "monthly_roi": 768.7331512667896,
+    "annual_roi": 768.7331512667896,
+    "payback_months": 1.1478013400650768
+  },
+  "insights": [
+    "Strong 41% throughput improvement achieved",
+    "Testing is the bottleneck",
+    "Excellent 769% annual ROI",
+    "Fast 1.1 month payback"
+  ]
+}

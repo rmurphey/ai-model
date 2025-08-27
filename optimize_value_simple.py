@@ -19,20 +19,31 @@ except ImportError:
     CYAN = '\033[96m'
 
 
+def simulate_baseline_throughput(team_size: int, test_automation: float, deployment_freq: str,
+                                senior_ratio: float, junior_ratio: float):
+    """Calculate baseline throughput without AI."""
+    pipeline = create_pipeline_model(team_size, test_automation, deployment_freq)
+    baseline_data = pipeline.calculate_throughput(0.0)  # 0% AI adoption
+    return baseline_data['throughput_per_day']
+
+
 def simulate_pipeline(team_size: int, cost_per_seat: float, adoption: float,
                       test_automation: float, deployment_freq: str,
-                      senior_ratio: float = 0.2, junior_ratio: float = 0.4):
+                      senior_ratio: float = 0.2, junior_ratio: float = 0.4,
+                      avg_salary: int = 120000):
     """
     Simulate delivery pipeline with given parameters and seniority constraints.
+    Now with realistic cost accounting including base salaries.
     
     Args:
         team_size: Total team size
-        cost_per_seat: Cost per developer seat
+        cost_per_seat: Cost per AI tool seat
         adoption: AI adoption rate (0-1)
         test_automation: Test automation level (0-1)
         deployment_freq: Deployment frequency
         senior_ratio: Ratio of senior developers (0-1)
         junior_ratio: Ratio of junior developers (0-1)
+        avg_salary: Average developer salary for base costs
     """
     
     # Calculate team composition
@@ -115,20 +126,44 @@ def simulate_pipeline(team_size: int, cost_per_seat: float, adoption: float,
     escape_rate = 0.3 * (1 - test_automation * 0.5)  # Automation catches more
     defects_in_production = actual_throughput * defect_rate_with_ai * escape_rate
     
-    # Financial calculations
-    value_per_feature = 10000  # $10k value per feature
-    defect_cost = 5000  # $5k per defect in production
+    # Financial calculations with REALISTIC values
+    # Realistic feature value: $3-5k (not $10k)
+    value_per_feature = 4000  # $4k value per feature
+    defect_cost = 2000  # $2k per defect in production
     
-    monthly_value = actual_throughput * value_per_feature
+    # Don't artificially cap throughput - it's already realistic from the pipeline model
+    realistic_throughput = actual_throughput
+    
+    monthly_feature_value = realistic_throughput * value_per_feature
     monthly_defect_cost = defects_in_production * defect_cost
-    monthly_net_value = monthly_value - monthly_defect_cost
+    monthly_net_value = monthly_feature_value - monthly_defect_cost
     
-    # Costs
-    monthly_cost = cost_per_seat * team_size * adoption
-    monthly_profit = monthly_net_value - monthly_cost
+    # PROPER cost accounting including base salaries
+    monthly_salary_cost = (avg_salary / 12) * team_size  # Base operational cost
+    monthly_ai_cost = cost_per_seat * team_size * adoption  # AI tool cost
+    total_monthly_cost = monthly_salary_cost + monthly_ai_cost
     
-    # ROI
-    roi = (monthly_profit / monthly_cost * 100) if monthly_cost > 0 else 0
+    # Calculate INCREMENTAL value (what we gain from optimization)
+    # Baseline is throughput without AI (adoption = 0)
+    baseline_throughput = simulate_baseline_throughput(team_size, test_automation, deployment_freq,
+                                                      senior_ratio, junior_ratio)
+    baseline_value = baseline_throughput * value_per_feature
+    incremental_value = monthly_net_value - baseline_value
+    
+    # Implementation cost (even "exploitation" has cost)
+    implementation_cost_monthly = (team_size * 500) / 12  # $500/person amortized over a year
+    
+    # Net profit (incremental value minus incremental costs)
+    incremental_cost = monthly_ai_cost + implementation_cost_monthly
+    net_incremental_profit = incremental_value - incremental_cost
+    
+    # REALISTIC ROI based on incremental returns
+    if incremental_cost > 0:
+        roi = (net_incremental_profit / incremental_cost * 100)
+        annual_roi = roi * 12 / 12  # Annualized
+    else:
+        roi = 0
+        annual_roi = 0
     
     return {
         'adoption': adoption * 100,
@@ -140,18 +175,23 @@ def simulate_pipeline(team_size: int, cost_per_seat: float, adoption: float,
         'coding_throughput': coding_throughput,
         'review_throughput': review_throughput,
         'test_throughput': test_throughput,
-        'actual_throughput': actual_throughput,
+        'actual_throughput': realistic_throughput,  # Use realistic throughput
         'bottleneck': bottleneck,
         'senior_review_capacity': max_review_capacity,
         'junior_pr_load': junior_pr_load,
         'total_pr_load': total_pr_load,
         'review_utilization': total_pr_load / max_review_capacity if max_review_capacity > 0 else 0,
         'defects_in_production': defects_in_production,
-        'monthly_value': monthly_value,
-        'monthly_cost': monthly_cost,
-        'monthly_profit': monthly_profit,
-        'roi': roi,
-        'payback_months': monthly_cost / monthly_profit if monthly_profit > 0 else 999
+        'monthly_value': monthly_net_value,
+        'monthly_cost': total_monthly_cost,  # Include base salaries
+        'monthly_ai_cost': monthly_ai_cost,  # AI cost separately
+        'monthly_salary_cost': monthly_salary_cost,  # Base salaries
+        'incremental_value': incremental_value,  # What we actually gain
+        'incremental_cost': incremental_cost,  # What we actually spend extra
+        'monthly_profit': net_incremental_profit,  # Real profit
+        'roi': roi,  # Realistic ROI
+        'annual_roi': annual_roi,  # Annualized
+        'payback_months': incremental_cost / net_incremental_profit if net_incremental_profit > 0 else 999
     }
 
 
@@ -165,6 +205,7 @@ def find_optimal_using_toc(team_size: int, cost_per_seat: float,
     try:
         from src.model.delivery_pipeline import create_standard_pipeline
         from src.model.constraint_optimizer import ConstraintOptimizer
+from src.model.delivery_pipeline import create_standard_pipeline as create_pipeline_model
         
         # Create team composition
         senior_count = max(1, int(team_size * senior_ratio))

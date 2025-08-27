@@ -164,36 +164,37 @@ class ConstraintOptimizer:
         improvements = {}
         
         if constraint_type == ConstraintType.CODE_REVIEW:
-            # Optimize code review process
+            # Optimize code review process - REALISTIC improvements
             improvements.update({
-                'review_tooling_improvement': 0.15,  # 15% faster with better tools
-                'review_focus_improvement': 0.20,   # 20% faster with focused reviews
-                'ai_review_assistance': 0.10,       # 10% faster with AI assistance
-                'batched_reviews': 0.08             # 8% faster with batching
+                'review_tooling_improvement': 0.05,  # 5% faster with better tools
+                'review_focus_improvement': 0.08,   # 8% faster with focused reviews
+                'ai_review_assistance': 0.04,       # 4% faster with AI assistance
+                'batched_reviews': 0.03             # 3% faster with batching
             })
             
         elif constraint_type == ConstraintType.TESTING:
-            # Optimize testing process
+            # Optimize testing process - REALISTIC improvements
             improvements.update({
-                'test_parallelization': 0.25,      # 25% faster with parallel execution
-                'test_selection': 0.15,            # 15% faster with smart test selection
-                'flaky_test_elimination': 0.12,    # 12% faster removing flaky tests
-                'test_environment_optimization': 0.10  # 10% faster with better environments
+                'test_parallelization': 0.10,      # 10% faster with parallel execution
+                'test_selection': 0.06,            # 6% faster with smart test selection
+                'flaky_test_elimination': 0.05,    # 5% faster removing flaky tests
+                'test_environment_optimization': 0.04  # 4% faster with better environments
             })
             
         elif constraint_type == ConstraintType.DEPLOYMENT:
-            # Optimize deployment process
+            # Optimize deployment process - REALISTIC improvements
             improvements.update({
-                'deployment_automation': 0.30,     # 30% faster with full automation
-                'deployment_batching': 0.15,       # 15% faster with optimal batching
-                'rollback_optimization': 0.10,     # 10% faster with better rollback
-                'monitoring_integration': 0.08     # 8% faster with integrated monitoring
+                'deployment_automation': 0.12,     # 12% faster with full automation
+                'deployment_batching': 0.06,       # 6% faster with optimal batching
+                'rollback_optimization': 0.04,     # 4% faster with better rollback
+                'monitoring_integration': 0.03     # 3% faster with integrated monitoring
             })
         
-        # Calculate total exploitation impact (diminishing returns)
+        # Calculate total exploitation impact with MORE diminishing returns
         total_improvement = sum(improvements.values())
-        # Apply diminishing returns: effectiveness = 1 - e^(-improvement)
-        effective_improvement = 1 - np.exp(-total_improvement)
+        # Apply stronger diminishing returns for realism
+        # Cap at 30% total improvement even in best case
+        effective_improvement = min(0.30, total_improvement * 0.7)  # 70% effectiveness, 30% max
         
         exploited_throughput = current_throughput * (1 + effective_improvement)
         
@@ -337,7 +338,8 @@ class ConstraintOptimizer:
     def optimize_for_constraint(self, 
                                team_composition: Dict[str, int],
                                cost_per_seat: float,
-                               feature_value: float = 10000) -> Dict[str, Any]:
+                               feature_value: float = 4000,
+                               avg_salary: int = 120000) -> Dict[str, Any]:
         """
         Complete Five Focusing Steps optimization.
         
@@ -365,12 +367,25 @@ class ConstraintOptimizer:
             exploited_throughput = exploitation_result['exploited_throughput']
             subordinated_throughput = exploited_throughput * (1 + subordination_benefit)
             
-            # Calculate value delivery (constraint-focused)
-            daily_value = subordinated_throughput * feature_value
-            monthly_cost = cost_per_seat * sum(team_composition.values()) * ai_adoption
+            # Calculate INCREMENTAL value (what we gain vs baseline)
+            team_size = sum(team_composition.values())
+            # Get actual baseline from pipeline with 0% AI
+            baseline_analysis = self.identify_constraint(0.0, team_composition)
+            baseline_throughput = baseline_analysis.current_throughput
+            incremental_throughput = subordinated_throughput - baseline_throughput
+            realistic_throughput = subordinated_throughput  # Use actual calculated throughput
             
-            # Economic value per day after costs
-            net_value_per_day = daily_value - (monthly_cost / 30)
+            # Financial calculations with proper cost accounting
+            monthly_salary_cost = (avg_salary / 12) * team_size
+            monthly_ai_cost = cost_per_seat * team_size * ai_adoption
+            implementation_cost_monthly = (team_size * 500) / 12  # Implementation cost amortized
+            
+            # Incremental value and cost
+            monthly_incremental_value = incremental_throughput * feature_value * 30
+            monthly_incremental_cost = monthly_ai_cost + implementation_cost_monthly
+            
+            # Net value per day
+            net_value_per_day = (monthly_incremental_value - monthly_incremental_cost) / 30
             
             if net_value_per_day > best_value_per_day:
                 best_value_per_day = net_value_per_day
@@ -379,10 +394,16 @@ class ConstraintOptimizer:
                     'constraint_analysis': constraint_analysis,
                     'exploitation_result': exploitation_result,
                     'subordination_rules': subordination_rules,
-                    'final_throughput': subordinated_throughput,
-                    'daily_value': daily_value,
-                    'monthly_cost': monthly_cost,
+                    'final_throughput': realistic_throughput,
+                    'baseline_throughput': baseline_throughput,
+                    'incremental_throughput': incremental_throughput,
+                    'monthly_salary_cost': monthly_salary_cost,
+                    'monthly_ai_cost': monthly_ai_cost,
+                    'monthly_cost': monthly_salary_cost + monthly_ai_cost,
+                    'monthly_incremental_value': monthly_incremental_value,
+                    'monthly_incremental_cost': monthly_incremental_cost,
                     'net_value_per_day': net_value_per_day,
+                    'realistic_roi': (monthly_incremental_value - monthly_incremental_cost) / monthly_incremental_cost * 100 if monthly_incremental_cost > 0 else 0,
                     'constraint_focused': True  # Flag indicating ToC approach
                 }
         
@@ -459,13 +480,13 @@ class ConstraintOptimizer:
             return base_potential
     
     def _estimate_exploitation_impact(self, constraint_type: ConstraintType) -> float:
-        """Estimate throughput increase from exploitation strategies."""
+        """Estimate REALISTIC throughput increase from exploitation strategies."""
         if constraint_type == ConstraintType.CODE_REVIEW:
-            return 0.25  # 25% improvement typical from review optimization
+            return 0.15  # 15% improvement realistic from review optimization
         elif constraint_type == ConstraintType.TESTING:
-            return 0.30  # 30% improvement from test optimization
+            return 0.20  # 20% improvement realistic from test optimization
         else:
-            return 0.15  # 15% default improvement
+            return 0.10  # 10% default improvement
     
     def _estimate_elevation_cost(self, 
                                constraint_type: ConstraintType,

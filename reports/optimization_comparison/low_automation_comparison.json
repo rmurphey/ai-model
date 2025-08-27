@@ -1,0 +1,148 @@
+{
+  "scenario_name": "low_automation",
+  "configuration": {
+    "team_size": 50,
+    "team_composition": {
+      "senior": 15,
+      "mid": 20,
+      "junior": 15
+    },
+    "senior_ratio": 0.3,
+    "junior_ratio": 0.3,
+    "test_automation": 0.2,
+    "cost_per_seat": 150
+  },
+  "traditional_optimization": {
+    "approach": "Maximize profit by finding optimal AI adoption percentage",
+    "optimal_adoption": 0,
+    "throughput": 1.7699115044247786,
+    "bottleneck": "testing",
+    "monthly_profit": 102738.69026548673,
+    "focus": "Global optimization of AI adoption",
+    "all_results": [
+      {
+        "adoption": 0,
+        "throughput": 1.7699115044247786,
+        "bottleneck": "testing",
+        "monthly_value": 102738.69026548673,
+        "monthly_cost": 0.0,
+        "monthly_profit": 102738.69026548673
+      },
+      {
+        "adoption": 10,
+        "throughput": 1.7570564954551382,
+        "bottleneck": "testing",
+        "monthly_value": 101910.24101680686,
+        "monthly_cost": 750.0,
+        "monthly_profit": 101160.24101680686
+      },
+      {
+        "adoption": 20,
+        "throughput": 1.744186046511628,
+        "bottleneck": "testing",
+        "monthly_value": 101079.63913120746,
+        "monthly_cost": 1500.0,
+        "monthly_profit": 99579.63913120746
+      },
+      {
+        "adoption": 30,
+        "throughput": 1.7313106694121108,
+        "bottleneck": "testing",
+        "monthly_value": 100247.58626923578,
+        "monthly_cost": 2250.0,
+        "monthly_profit": 97997.58626923578
+      },
+      {
+        "adoption": 40,
+        "throughput": 1.7184401850627893,
+        "bottleneck": "testing",
+        "monthly_value": 99414.74498447654,
+        "monthly_cost": 3000.0,
+        "monthly_profit": 96414.74498447654
+      },
+      {
+        "adoption": 50,
+        "throughput": 1.7055837563451777,
+        "bottleneck": "testing",
+        "monthly_value": 98581.74051216246,
+        "monthly_cost": 3750.0,
+        "monthly_profit": 94831.74051216246
+      },
+      {
+        "adoption": 60,
+        "throughput": 1.6927499201533058,
+        "bottleneck": "testing",
+        "monthly_value": 97749.1625170687,
+        "monthly_cost": 4500.0,
+        "monthly_profit": 93249.1625170687
+      },
+      {
+        "adoption": 70,
+        "throughput": 1.679946618518664,
+        "bottleneck": "testing",
+        "monthly_value": 96917.56679664407,
+        "monthly_cost": 5250.0,
+        "monthly_profit": 91667.56679664407
+      },
+      {
+        "adoption": 80,
+        "throughput": 1.6671812287743133,
+        "bottleneck": "testing",
+        "monthly_value": 96087.47693614004,
+        "monthly_cost": 6000.0,
+        "monthly_profit": 90087.47693614004
+      },
+      {
+        "adoption": 90,
+        "throughput": 1.6544605927218914,
+        "bottleneck": "testing",
+        "monthly_value": 95259.38591321759,
+        "monthly_cost": 6750.0,
+        "monthly_profit": 88509.38591321759
+      },
+      {
+        "adoption": 100,
+        "throughput": 1.641791044776119,
+        "bottleneck": "testing",
+        "monthly_value": 94433.75765014923,
+        "monthly_cost": 7500.0,
+        "monthly_profit": 86933.75765014923
+      }
+    ]
+  },
+  "toc_optimization": {
+    "approach": "Apply Five Focusing Steps to maximize constraint throughput",
+    "optimal_adoption": 10.0,
+    "throughput": 3.082697067168711,
+    "constraint": "testing",
+    "monthly_profit": 924059.1201506134,
+    "exploitation_improvement": 46.20555624053255,
+    "focus": "Constraint throughput optimization",
+    "subordination_benefit": 20.0
+  },
+  "comparison_metrics": {
+    "profit_difference": 821320.4298851267,
+    "profit_improvement_percent": 799.426611107028,
+    "adoption_difference": 10.0,
+    "throughput_difference": 1.3127855627439324,
+    "exploitation_value": 46.20555624053255,
+    "approach_difference": "ToC focuses on constraint, traditional on global adoption"
+  },
+  "key_insights": [
+    {
+      "category": "Zero-Cost Improvement",
+      "finding": "46.2% improvement possible at $0",
+      "explanation": "ToC exploits constraint before adding capacity (traditional misses this)"
+    },
+    {
+      "category": "Subordination",
+      "finding": "20.0% improvement from subordination",
+      "explanation": "Non-constraints support constraint (traditional optimizes each stage independently)"
+    },
+    {
+      "category": "Economic Impact",
+      "finding": "Constraint costs $3558/day",
+      "explanation": "ToC makes constraint cost visible, traditional approach hides this"
+    }
+  ]
+}
