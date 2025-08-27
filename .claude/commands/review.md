@@ -53,7 +53,7 @@ The `/review` command orchestrates multiple specialized code review agents to pr
 
 ### Report Generation
 
-Reports are saved to `.claude/agents/reports/` with timestamps:
+Reports are saved to `outputs/review_reports/` with timestamps:
 - `review_summary_YYYYMMDD_HHMMSS.md` - Combined markdown report
 - `python_reviewer_YYYYMMDD_HHMMSS.json` - Detailed reviewer findings
 - `testing_expert_YYYYMMDD_HHMMSS.json` - Detailed testing analysis
@@ -95,7 +95,7 @@ $ claude review
 
 ✅ Review complete in 2.3 seconds
 
-📁 Reports saved to: .claude/agents/reports
+📁 Reports saved to: outputs/review_reports
   • Summary: review_summary_20250821_100000.md
   • Reviewer: python_reviewer_20250821_100000.json
   • Testing: testing_expert_20250821_100000.json
@@ -120,7 +120,7 @@ if claude review --no-show; then
   echo "Code review passed"
 else
   echo "Code review failed - check reports"
-  cat .claude/agents/reports/latest_review.md
+  cat outputs/review_reports/latest_review.md
   exit 1
 fi
 ```
@@ -135,7 +135,7 @@ $ claude review --path ../other-project
 
 Reports are automatically organized:
 ```
-.claude/agents/reports/
+outputs/review_reports/
 ├── .gitignore                           # Excludes reports from git
 ├── latest_review.md                     # Symlink to most recent
 ├── review_summary_20250821_100000.md    # Human-readable summary

@@ -89,7 +89,7 @@ pip install pytest-cov pytest-html pytest-xdist
 # Run core business logic tests (matches CI)
 pytest tests/test_impact_model.py tests/test_cost_structure.py \
        tests/test_adoption_dynamics.py tests/test_baseline.py \
-       --cov=src.model --cov-report=html --html=reports/test-report.html
+       --cov=src.model --cov-report=html --html=outputs/test-report.html
 
 # Run quick PR validation
 pytest tests/test_impact_model.py tests/test_cost_structure.py \

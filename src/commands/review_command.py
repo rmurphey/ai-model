@@ -3,7 +3,7 @@
 Code Review Command - Runs multiple code review agents and generates comprehensive reports.
 
 This module orchestrates Python code review agents to analyze the codebase and generate
-actionable recommendations saved to .claude/agents/reports/.
+actionable recommendations saved to outputs/review_reports/.
 """
 
 import os
@@ -23,7 +23,7 @@ class ReviewCommand:
     def __init__(self, repo_path: str = "."):
         """Initialize review command with repository path."""
         self.repo_path = Path(repo_path).resolve()
-        self.reports_dir = self.repo_path / ".claude" / "agents" / "reports"
+        self.reports_dir = self.repo_path / "outputs" / "review_reports"
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
     def ensure_reports_directory(self) -> None:
