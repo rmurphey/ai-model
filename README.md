@@ -1,6 +1,25 @@
 # AI-Assisted Development Business Impact Model
 
-A data-driven framework for evaluating the ROI of AI development tools in your organization.
+A data-driven framework for evaluating the ROI of AI development tools in your organization, now with **end-to-end pipeline modeling** for true value delivery analysis.
+
+## 🔥 NEW: Pipeline-Based Value Modeling
+
+**Traditional approach**: "AI makes coding 40% faster" ❌  
+**Our approach**: "AI speeds up coding but slows down review, how much value actually reaches customers?" ✅
+
+- **End-to-End Pipeline**: Model the complete journey from idea to production value
+- **Bottleneck Analysis**: Identify what actually limits your throughput (usually code review!)
+- **Testing Strategy Impact**: Account for different testing approaches and their AI interaction
+- **Quality Degradation**: Model how AI-generated code affects review and testing effectiveness
+- **True Value Delivery**: Measure value that actually reaches customers, not just coding speed
+
+```bash
+# Find optimal strategy considering the entire pipeline
+python optimize_value_simple.py --team 50 --cost 100 --automation 0.3
+
+# See what's really limiting your throughput
+python optimize_value_simple.py --team 20 --cost 200 --deploy daily
+```
 
 ## Features
 
@@ -12,7 +31,8 @@ A data-driven framework for evaluating the ROI of AI development tools in your o
 🎯 **Industry Templates** - Pre-configured scenarios for different company types  
 📝 **Comprehensive Reports** - Export to Markdown, JSON, or plain text  
 🔍 **Version Management** - Track model evolution and ensure reproducibility  
-🔧 **Constraint Solver** - Optimize parameters with business constraints (NEW)
+🔧 **Constraint Solver** - Optimize parameters with business constraints
+🚀 **Pipeline Modeling** - End-to-end value delivery analysis (NEW)
 
 ## Quick Start
 
@@ -151,22 +171,83 @@ python validate_constraints.py --all --strict
 - `max_adoption`: Maximize adoption success
 - `balanced`: Multi-objective balanced optimization
 
+## Pipeline Value Optimization (NEW)
+
+### End-to-End Value Delivery
+Move beyond simple productivity metrics to optimize for actual customer value delivery:
+
+```bash
+# Simple pipeline optimization (recommended)
+python optimize_value_simple.py --team 50 --cost 100
+
+# With specific testing strategy
+python optimize_value_simple.py --team 20 --cost 200 --automation 0.7 --deploy daily
+
+# Compare different deployment frequencies
+python optimize_value_simple.py --team 100 --cost 50 --deploy weekly
+```
+
+### What Makes This Different
+
+**Traditional ROI Calculation:**
+- "AI makes developers 40% faster"
+- "40% faster = 40% more value"
+- ❌ Ignores pipeline bottlenecks
+
+**Pipeline-Based Calculation:**
+- ✅ **Coding**: AI makes coding 40% faster
+- ⚠️ **Review**: AI code takes 25% longer to review
+- ⚠️ **Testing**: AI generates 30% more code to test
+- ⚠️ **Quality**: AI introduces different types of bugs
+- ✅ **Result**: Identifies code review as the bottleneck limiting actual throughput
+
+### Key Insights the Pipeline Model Reveals
+
+1. **Code Review is Usually the Bottleneck** - Not coding speed
+2. **Testing Strategy Matters Hugely** - Automation coverage affects AI ROI
+3. **Deployment Frequency Multiplies Impact** - Daily deploys vs weekly completely changes the equation
+4. **Quality Degradation is Real** - AI-generated bugs are harder to catch
+5. **True Productivity = Delivered Value** - Not lines of code written
+
+### Realistic NPV Optimization
+For scenarios based on actual enterprise data:
+
+```bash
+# Conservative estimates (most realistic)
+python optimize_npv_realistic.py --team 50 --cost 100 --scenario conservative
+
+# Moderate projections (balanced)
+python optimize_npv_realistic.py --team 100 --cost 200 --scenario moderate
+
+# Aggressive targets (optimistic)
+python optimize_npv_realistic.py --team 20 --cost 300 --scenario aggressive
+```
+
 ## Project Structure
 
 ```
-├── main.py                 # Main entry point
-├── interactive.py          # Interactive mode
-├── run_analysis.py         # CLI analysis tool
-├── reproduce_results.py    # Result reproduction
-├── optimize.py             # Constraint optimization CLI
-├── validate_constraints.py # Constraint validation CLI
-├── docs/                   # Documentation
-│   ├── technical/         # Technical docs
-│   ├── usage/            # Usage guides
-│   └── development/      # Developer docs
+├── main.py                      # Main entry point
+├── interactive.py               # Interactive mode
+├── run_analysis.py              # CLI analysis tool
+├── reproduce_results.py         # Result reproduction
+├── optimize.py                  # Constraint optimization CLI
+├── optimize_npv_realistic.py    # NPV optimization with realistic constraints (NEW)
+├── optimize_value_simple.py     # Pipeline value optimization (NEW)
+├── validate_constraints.py      # Constraint validation CLI
+├── docs/                        # Documentation
+│   ├── technical/              # Technical docs
+│   ├── usage/                 # Usage guides
+│   └── development/           # Developer docs
 ├── src/
-│   ├── model/            # Core model
-│   ├── scenarios/        # Configurations
+│   ├── model/                 # Core model
+│   │   ├── delivery_pipeline.py    # End-to-end pipeline model (NEW)
+│   │   ├── test_strategy.py        # Testing strategy model (NEW)
+│   │   ├── pipeline_distributions.py # Pipeline distributions for Monte Carlo (NEW)
+│   │   └── impact_model.py         # Enhanced with pipeline integration
+│   ├── constraints/           # Constraint solver framework
+│   │   ├── business_constraints.py # Enhanced with capacity constraints
+│   │   └── constraint_solver.py
+│   ├── scenarios/            # Configurations
 │   ├── interactive/      # Interactive UI
 │   ├── analysis/         # Analysis tools
 │   └── constraints/      # Constraint solver framework
