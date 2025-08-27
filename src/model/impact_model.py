@@ -1,12 +1,15 @@
 """
 Business impact model for AI-assisted development.
 Calculates the value created through various improvement vectors.
+Now integrated with delivery pipeline model for end-to-end value calculation.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 import numpy as np
 from .baseline import BaselineMetrics
+from .delivery_pipeline import DeliveryPipeline, create_standard_pipeline
+from .test_strategy import CompleteTestStrategy, create_basic_test_strategy
 from ..utils.math_helpers import safe_divide, validate_positive, validate_ratio
 from ..utils.exceptions import CalculationError, ValidationError
 from ..config.constants import (
@@ -82,6 +85,8 @@ class BusinessImpact:
     baseline: BaselineMetrics
     factors: ImpactFactors
     adoption_rate: float  # Overall adoption rate (0-1)
+    pipeline: Optional[DeliveryPipeline] = None  # Optional delivery pipeline
+    test_strategy: Optional[CompleteTestStrategy] = None  # Optional test strategy
     
     def calculate_time_value(self) -> Dict[str, float]:
         """Calculate value from time-to-market improvements"""
@@ -228,22 +233,94 @@ class BusinessImpact:
             "total_strategic_value": retention_value + innovation_value + competitive_value + junior_boost
         }
     
+    def calculate_pipeline_value(self) -> Dict[str, float]:
+        """Calculate value using delivery pipeline model (true end-to-end value)"""
+        if not self.pipeline:
+            # Create default pipeline if not provided
+            self.pipeline = create_standard_pipeline(
+                team_size=self.baseline.team_size,
+                test_automation=0.3,
+                deployment_frequency="weekly"
+            )
+        
+        # Calculate throughput metrics
+        throughput = self.pipeline.calculate_throughput(self.adoption_rate)
+        
+        # Calculate lead time
+        lead_time = self.pipeline.calculate_lead_time(self.adoption_rate)
+        
+        # Calculate quality impact
+        quality = self.pipeline.calculate_quality_impact(self.adoption_rate)
+        
+        # Calculate value delivery
+        value_delivery = self.pipeline.calculate_value_delivery(
+            self.adoption_rate,
+            feature_value=self.baseline.weighted_avg_flc / 12  # Monthly FLC as proxy for feature value
+        )
+        
+        return {
+            "throughput_per_day": throughput["throughput_per_day"],
+            "bottleneck_stage": throughput["bottleneck_stage"],
+            "total_lead_time_days": lead_time["total_lead_time_days"],
+            "defects_in_production": quality["defects_in_production_per_100"],
+            "net_value_per_day": value_delivery["net_value_per_day"],
+            "value_efficiency": value_delivery["value_efficiency"],
+            "annual_pipeline_value": value_delivery["value_after_incidents"] * WORKING_DAYS_PER_YEAR
+        }
+    
+    def calculate_test_impact(self) -> Dict[str, float]:
+        """Calculate impact of testing strategy on value delivery"""
+        if not self.test_strategy:
+            # Create default test strategy if not provided
+            team_type = "startup" if self.baseline.team_size < 20 else \
+                       "enterprise" if self.baseline.team_size > 100 else "balanced"
+            self.test_strategy = create_basic_test_strategy(team_type)
+        
+        # Calculate comprehensive testing impact
+        test_impact = self.test_strategy.calculate_comprehensive_impact(
+            ai_adoption=self.adoption_rate,
+            code_volume=1.0  # Normalized volume
+        )
+        
+        return {
+            "total_test_time": test_impact["total_cycle_time"],
+            "defect_escape_rate": test_impact["defect_escape_rate"],
+            "testing_confidence": test_impact["testing_confidence"],
+            "testing_roi": test_impact["testing_roi"],
+            "quality_score": test_impact["quality_score"]
+        }
+    
     def calculate_total_impact(self) -> Dict[str, float]:
         """Calculate total business impact"""
         
+        # Traditional value calculations
         time_value = self.calculate_time_value()
         quality_value = self.calculate_quality_value()
         capacity_value = self.calculate_capacity_value()
         strategic_value = self.calculate_strategic_value()
         
-        total_value = (
-            time_value["total_time_value"] +
-            quality_value["total_quality_value"] +
-            capacity_value["total_capacity_value"] +
-            strategic_value["total_strategic_value"]
-        )
+        # Pipeline-based value (if available)
+        pipeline_value = {}
+        if self.pipeline:
+            pipeline_value = self.calculate_pipeline_value()
         
-        return {
+        # Test impact (if available)
+        test_impact = {}
+        if self.test_strategy:
+            test_impact = self.calculate_test_impact()
+        
+        # Use pipeline value if available, otherwise traditional calculation
+        if pipeline_value:
+            total_value = pipeline_value["annual_pipeline_value"]
+        else:
+            total_value = (
+                time_value["total_time_value"] +
+                quality_value["total_quality_value"] +
+                capacity_value["total_capacity_value"] +
+                strategic_value["total_strategic_value"]
+            )
+        
+        result = {
             "time_value": time_value["total_time_value"],
             "quality_value": quality_value["total_quality_value"],
             "capacity_value": capacity_value["total_capacity_value"],
@@ -262,6 +339,16 @@ class BusinessImpact:
                 context="value as percent of cost calculation"
             )
         }
+        
+        # Add pipeline metrics if available
+        if pipeline_value:
+            result["pipeline_metrics"] = pipeline_value
+        
+        # Add test metrics if available
+        if test_impact:
+            result["test_metrics"] = test_impact
+        
+        return result
     
     def calculate_value(self, effective_adoption: np.ndarray, months: int) -> np.ndarray:
         """

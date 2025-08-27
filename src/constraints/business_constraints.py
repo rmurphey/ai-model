@@ -1,6 +1,6 @@
 """
 Business constraint definitions for AI impact model.
-Defines realistic bounds and relationships between parameters.
+Defines realistic bounds and relationships between parameters including capacity constraints.
 """
 
 from typing import Dict, List, Optional, Tuple, Any
@@ -18,6 +18,8 @@ class ConstraintType(Enum):
     IMPACT = "impact"
     TIME = "time"
     ROI = "roi"
+    CAPACITY = "capacity"
+    PIPELINE = "pipeline"
     CUSTOM = "custom"
 
 
@@ -299,6 +301,146 @@ class BusinessConstraints:
                 type=ConstraintType.TIME,
                 description=f"Analysis timeframe must be between {min_months} and {max_months} months",
                 parameters={"min_months": min_months, "max_months": max_months}
+            )
+        )
+    
+    def add_capacity_constraints(self, team_size_var: Any,
+                                throughput_var: Any,
+                                wip_limit_multiplier: float = 2.0) -> None:
+        """
+        Add capacity and WIP (Work In Progress) constraints.
+        
+        Args:
+            team_size_var: Team size variable
+            throughput_var: Throughput variable
+            wip_limit_multiplier: WIP limit as multiplier of team size
+        """
+        # WIP limit constraint - can't have too much work in progress
+        max_wip = team_size_var * int(wip_limit_multiplier * 1000)
+        self.solver.add_constraint(
+            throughput_var * 30 <= max_wip,  # Monthly throughput limited by WIP
+            name=f"wip_limit_{wip_limit_multiplier}"
+        )
+        
+        # Throughput can't exceed team capacity
+        max_throughput_per_dev = 100  # Max 10 items per dev per month (scaled by 1000)
+        self.solver.add_constraint(
+            throughput_var <= team_size_var * max_throughput_per_dev,
+            name="max_throughput_capacity"
+        )
+        
+        self.constraints.append(
+            ConstraintDefinition(
+                name=f"capacity_wip_{wip_limit_multiplier}",
+                type=ConstraintType.CAPACITY,
+                description=f"Capacity and WIP constraints with multiplier {wip_limit_multiplier}",
+                parameters={
+                    "wip_limit_multiplier": wip_limit_multiplier,
+                    "max_throughput_per_dev": max_throughput_per_dev / 1000
+                }
+            )
+        )
+    
+    def add_pipeline_constraints(self, pipeline_vars: Dict[str, Any]) -> None:
+        """
+        Add delivery pipeline constraints (bottlenecks, review capacity, etc).
+        
+        Args:
+            pipeline_vars: Dictionary of pipeline stage variables
+        """
+        # Code review capacity constraint
+        if 'review_capacity' in pipeline_vars and 'coding_throughput' in pipeline_vars:
+            # Review capacity must be >= coding throughput (review is often bottleneck)
+            self.solver.add_constraint(
+                pipeline_vars['review_capacity'] >= pipeline_vars['coding_throughput'] * 800 / 1000,
+                name="review_bottleneck"
+            )
+        
+        # Testing capacity constraint
+        if 'test_capacity' in pipeline_vars and 'coding_throughput' in pipeline_vars:
+            # Test capacity needs to keep up with coding
+            self.solver.add_constraint(
+                pipeline_vars['test_capacity'] >= pipeline_vars['coding_throughput'] * 700 / 1000,
+                name="test_bottleneck"
+            )
+        
+        # Deployment frequency constraint
+        if 'deployment_frequency' in pipeline_vars:
+            # Deployment frequency bounds (daily=30, weekly=4, monthly=1 per month)
+            self.solver.add_constraint(
+                pipeline_vars['deployment_frequency'] >= 1,  # At least monthly
+                name="min_deployment_frequency"
+            )
+            self.solver.add_constraint(
+                pipeline_vars['deployment_frequency'] <= 30,  # At most daily
+                name="max_deployment_frequency"
+            )
+        
+        # Lead time constraint
+        if 'lead_time_days' in pipeline_vars:
+            # Lead time should be reasonable
+            self.solver.add_constraint(
+                pipeline_vars['lead_time_days'] >= 1,  # At least 1 day
+                name="min_lead_time"
+            )
+            self.solver.add_constraint(
+                pipeline_vars['lead_time_days'] <= 90,  # At most 90 days
+                name="max_lead_time"
+            )
+        
+        self.constraints.append(
+            ConstraintDefinition(
+                name="pipeline_flow",
+                type=ConstraintType.PIPELINE,
+                description="Delivery pipeline flow and bottleneck constraints",
+                parameters={"stages": list(pipeline_vars.keys())}
+            )
+        )
+    
+    def add_testing_constraints(self, automation_coverage_var: Any,
+                               test_quality_var: Any,
+                               defect_escape_var: Any) -> None:
+        """
+        Add testing strategy constraints.
+        
+        Args:
+            automation_coverage_var: Test automation coverage variable (0-1000)
+            test_quality_var: Test quality variable (0-1000)
+            defect_escape_var: Defect escape rate variable (0-1000)
+        """
+        # Test automation coverage bounds
+        self.solver.add_constraint(
+            automation_coverage_var >= 100,  # At least 10% automation
+            name="min_test_automation"
+        )
+        self.solver.add_constraint(
+            automation_coverage_var <= 900,  # At most 90% automation
+            name="max_test_automation"
+        )
+        
+        # Test quality inversely relates to defect escape
+        # Higher quality -> lower escape rate
+        self.solver.add_constraint(
+            test_quality_var + defect_escape_var <= 1200,  # Sum constraint
+            name="quality_escape_tradeoff"
+        )
+        
+        # Minimum test quality
+        self.solver.add_constraint(
+            test_quality_var >= 300,  # At least 30% quality
+            name="min_test_quality"
+        )
+        
+        self.constraints.append(
+            ConstraintDefinition(
+                name="testing_strategy",
+                type=ConstraintType.PIPELINE,
+                description="Testing strategy and quality constraints",
+                parameters={
+                    "min_automation": 0.1,
+                    "max_automation": 0.9,
+                    "min_quality": 0.3
+                }
             )
         )
     
