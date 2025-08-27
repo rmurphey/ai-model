@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple
 from enum import Enum
 import numpy as np
 
+from .queue_model import PipelineQueue, QueueMetrics, apply_littles_law
 from ..utils.math_helpers import safe_divide, validate_positive, validate_ratio
 from ..utils.exceptions import ValidationError, CalculationError
 
@@ -130,7 +131,7 @@ class TestingStrategy:
 
 @dataclass 
 class DeliveryPipeline:
-    """Models the complete software delivery pipeline."""
+    """Models the complete software delivery pipeline with queue modeling."""
     
     stages: Dict[PipelineStage, StageMetrics]
     testing_strategy: TestingStrategy
@@ -144,8 +145,17 @@ class DeliveryPipeline:
     deployment_frequency: str = "weekly"  # daily, weekly, biweekly, monthly
     rollback_rate: float = 0.02  # Percentage of deployments rolled back
     
+    # Queue modeling and WIP limits
+    stage_queues: Dict[PipelineStage, PipelineQueue] = None
+    wip_limits: Dict[PipelineStage, int] = None
+    batch_sizes: Dict[PipelineStage, int] = None
+    
+    # Subordination settings (Theory of Constraints)
+    constraint_stage: Optional[PipelineStage] = None
+    subordination_active: bool = False
+    
     def __post_init__(self):
-        """Validate pipeline configuration."""
+        """Validate pipeline configuration and initialize queue modeling."""
         validate_positive(self.team_size, "team_size")
         validate_ratio(self.review_thoroughness, "review_thoroughness")
         validate_ratio(self.rollback_rate, "rollback_rate")
@@ -157,6 +167,114 @@ class DeliveryPipeline:
                 expected="between 0.8 and 2.0",
                 suggestion="AI code typically takes longer to review"
             )
+        
+        # Initialize queue modeling if not provided
+        if self.stage_queues is None:
+            self._initialize_queues()
+        if self.wip_limits is None:
+            self._initialize_wip_limits()
+        if self.batch_sizes is None:
+            self._initialize_batch_sizes()
+    
+    def _initialize_queues(self):
+        """Initialize pipeline queues for each stage."""
+        self.stage_queues = {}
+        for stage in PipelineStage:
+            self.stage_queues[stage] = PipelineQueue(
+                stage_name=stage.value,
+                max_wip=None,  # Will be set by WIP limits
+                batch_size=1   # Will be set by batch sizes
+            )
+    
+    def _initialize_wip_limits(self):
+        """Initialize reasonable WIP limits based on team size."""
+        base_wip = max(2, self.team_size // 3)  # Base WIP limit
+        
+        self.wip_limits = {
+            PipelineStage.REQUIREMENTS: base_wip * 2,  # Requirements can queue up
+            PipelineStage.DESIGN: base_wip,
+            PipelineStage.CODING: self.team_size,      # One per developer
+            PipelineStage.CODE_REVIEW: base_wip,       # Limited by senior capacity
+            PipelineStage.TESTING: base_wip,
+            PipelineStage.DEPLOYMENT: base_wip // 2,   # Keep deployment queue small
+            PipelineStage.MONITORING: base_wip * 3     # Monitoring can handle more
+        }
+        
+        # Apply WIP limits to queues
+        for stage, limit in self.wip_limits.items():
+            if stage in self.stage_queues:
+                self.stage_queues[stage].max_wip = limit
+    
+    def _initialize_batch_sizes(self):
+        """Initialize optimal batch sizes based on Reinertsen's principles."""
+        self.batch_sizes = {
+            PipelineStage.REQUIREMENTS: 3,     # Batch requirements for efficiency
+            PipelineStage.DESIGN: 2,          # Small design batches
+            PipelineStage.CODING: 1,          # Individual features
+            PipelineStage.CODE_REVIEW: 2,     # Review 2 PRs together for efficiency
+            PipelineStage.TESTING: 3,         # Batch tests for automation
+            PipelineStage.DEPLOYMENT: 5,      # Deploy multiple features together
+            PipelineStage.MONITORING: 1       # Monitor individual deployments
+        }
+        
+        # Apply batch sizes to queues
+        for stage, batch_size in self.batch_sizes.items():
+            if stage in self.stage_queues:
+                self.stage_queues[stage].batch_size = batch_size
+    
+    def calculate_throughput_with_queues(self, ai_adoption: float) -> Dict[str, float]:
+        """
+        Calculate pipeline throughput with queue-aware modeling.
+        Includes queue delays and WIP constraints in throughput calculation.
+        """
+        stage_throughputs = {}
+        queue_delays = {}
+        
+        for stage, metrics in self.stages.items():
+            # Calculate base throughput
+            if stage == PipelineStage.CODE_REVIEW:
+                review_impact = 1 + (self.ai_code_review_multiplier - 1) * ai_adoption
+                base_throughput = metrics.get_effective_throughput(ai_adoption) / review_impact
+            elif stage == PipelineStage.TESTING:
+                base_throughput = metrics.get_effective_throughput(ai_adoption)
+                test_time = self.testing_strategy.get_effective_test_time(ai_adoption, 1.0)
+                base_throughput = safe_divide(base_throughput, 1 + test_time/8, default=0.1)
+            else:
+                base_throughput = metrics.get_effective_throughput(ai_adoption)
+            
+            # Apply WIP constraints
+            wip_limit = self.wip_limits.get(stage, float('inf'))
+            wip_constrained_throughput = min(base_throughput, wip_limit * 0.8)  # 80% utilization
+            
+            # Calculate queue delay impact
+            queue = self.stage_queues.get(stage)
+            if queue and len(queue.waiting_items) > 0:
+                queue_metrics = queue.get_queue_metrics()
+                queue_delay_factor = 1.0 / (1.0 + queue_metrics.avg_wait_time * 0.1)  # Delay reduces effective throughput
+                effective_throughput = wip_constrained_throughput * queue_delay_factor
+                queue_delays[stage.value] = queue_metrics.avg_wait_time
+            else:
+                effective_throughput = wip_constrained_throughput
+                queue_delays[stage.value] = 0.0
+            
+            stage_throughputs[stage.value] = effective_throughput
+        
+        # Overall throughput is the minimum (bottleneck)
+        bottleneck_stage = min(stage_throughputs, key=stage_throughputs.get)
+        bottleneck_throughput = stage_throughputs[bottleneck_stage]
+        
+        return {
+            'throughput_per_day': bottleneck_throughput,
+            'bottleneck_stage': bottleneck_stage,
+            'stage_throughputs': stage_throughputs,
+            'queue_delays': queue_delays,
+            'utilization': {stage: stage_throughputs[stage]/bottleneck_throughput 
+                          for stage in stage_throughputs},
+            'wip_utilization': {stage.value: len(self.stage_queues[stage].waiting_items + 
+                                                self.stage_queues[stage].in_progress_items) / 
+                                              self.wip_limits[stage]
+                              for stage in self.stages.keys()}
+        }
     
     def calculate_throughput(self, ai_adoption: float) -> Dict[str, float]:
         """
@@ -190,6 +308,60 @@ class DeliveryPipeline:
             'stage_throughputs': stage_throughputs,
             'utilization': {stage: stage_throughputs[stage]/bottleneck_throughput 
                           for stage in stage_throughputs}
+        }
+    
+    def apply_subordination(self, constraint_stage: PipelineStage):
+        """
+        Apply Theory of Constraints subordination to optimize for the constraint.
+        All stages subordinate their local optimization to support the constraint.
+        """
+        self.constraint_stage = constraint_stage
+        self.subordination_active = True
+        
+        # Adjust WIP limits to support constraint
+        if constraint_stage == PipelineStage.CODE_REVIEW:
+            # Reduce coding WIP to prevent overwhelming review
+            self.wip_limits[PipelineStage.CODING] = min(
+                self.wip_limits[PipelineStage.CODING],
+                self.wip_limits[PipelineStage.CODE_REVIEW] * 2
+            )
+            # Increase buffer before review
+            self.wip_limits[PipelineStage.CODE_REVIEW] = int(
+                self.wip_limits[PipelineStage.CODE_REVIEW] * 1.2
+            )
+            
+        elif constraint_stage == PipelineStage.TESTING:
+            # Optimize for testability
+            self.batch_sizes[PipelineStage.CODING] = 1  # Smaller, more testable chunks
+            self.wip_limits[PipelineStage.TESTING] = int(
+                self.wip_limits[PipelineStage.TESTING] * 1.3
+            )
+        
+        # Update queues with new limits and batch sizes
+        for stage in self.stages.keys():
+            if stage in self.stage_queues:
+                self.stage_queues[stage].max_wip = self.wip_limits[stage]
+                self.stage_queues[stage].batch_size = self.batch_sizes[stage]
+    
+    def calculate_queue_costs(self) -> Dict[str, float]:
+        """
+        Calculate economic cost of queues (invisible cost in most organizations).
+        Based on Reinertsen's emphasis on queue cost visibility.
+        """
+        queue_costs = {}
+        total_queue_cost = 0.0
+        
+        for stage, queue in self.stage_queues.items():
+            queue_cost = queue.get_total_cost_of_delay()
+            queue_costs[stage.value] = queue_cost
+            total_queue_cost += queue_cost
+        
+        return {
+            'queue_costs_by_stage': queue_costs,
+            'total_daily_queue_cost': total_queue_cost,
+            'monthly_queue_cost': total_queue_cost * 30,
+            'queue_cost_per_feature': safe_divide(total_queue_cost, 
+                                                 self.calculate_throughput(0.5)['throughput_per_day'])
         }
     
     def calculate_lead_time(self, ai_adoption: float) -> Dict[str, float]:
@@ -252,6 +424,23 @@ class DeliveryPipeline:
             'quality_score': 1 - final_defect_rate/100
         }
     
+    def calculate_flow_efficiency(self) -> float:
+        """
+        Calculate flow efficiency: ratio of value-add time to total lead time.
+        Per Reinertsen, most product development has flow efficiency < 25%.
+        """
+        lead_time_data = self.calculate_lead_time(0.5)  # Use moderate AI adoption
+        total_lead_time = lead_time_data['total_lead_time_days']
+        
+        # Value-add stages (actual work, not waiting)
+        value_add_stages = [PipelineStage.DESIGN, PipelineStage.CODING, PipelineStage.TESTING]
+        value_add_time = sum(
+            lead_time_data['stage_times'].get(stage.value, 0)
+            for stage in value_add_stages
+        )
+        
+        return safe_divide(value_add_time, total_lead_time, default=0.0)
+    
     def calculate_value_delivery(self, ai_adoption: float, 
                                 feature_value: float = 10000) -> Dict[str, float]:
         """
@@ -291,13 +480,20 @@ class DeliveryPipeline:
         incidents_per_day = deployed_features_per_day * defect_rate * 0.1  # 10% of defects cause incidents
         incident_cost = incidents_per_day * 5000  # $5000 per incident average
         
+        # Include queue costs in value calculation
+        queue_costs = self.calculate_queue_costs()
+        daily_queue_cost = queue_costs['total_daily_queue_cost']
+        
         return {
             'features_deployed_per_day': deployed_features_per_day,
             'gross_value_per_day': deployed_features_per_day * feature_value,
             'net_value_per_day': daily_value,
             'incident_cost_per_day': incident_cost,
+            'queue_cost_per_day': daily_queue_cost,
             'value_after_incidents': daily_value - incident_cost,
-            'value_efficiency': safe_divide(daily_value - incident_cost, 
+            'value_after_all_costs': daily_value - incident_cost - daily_queue_cost,
+            'flow_efficiency': self.calculate_flow_efficiency(),
+            'value_efficiency': safe_divide(daily_value - incident_cost - daily_queue_cost, 
                                           deployed_features_per_day * feature_value,
                                           default=0)
         }

@@ -155,11 +155,73 @@ def simulate_pipeline(team_size: int, cost_per_seat: float, adoption: float,
     }
 
 
-def find_optimal_adoption(team_size: int, cost_per_seat: float, 
-                         test_automation: float, deployment_freq: str,
-                         senior_ratio: float = 0.2, junior_ratio: float = 0.4):
+def find_optimal_using_toc(team_size: int, cost_per_seat: float,
+                          test_automation: float, deployment_freq: str,
+                          senior_ratio: float = 0.2, junior_ratio: float = 0.4):
     """
-    Find the adoption rate that maximizes profit given seniority constraints.
+    Find optimal configuration using Theory of Constraints approach.
+    Focuses on constraint throughput rather than global AI adoption optimization.
+    """
+    try:
+        from src.model.delivery_pipeline import create_standard_pipeline
+        from src.model.constraint_optimizer import ConstraintOptimizer
+        
+        # Create team composition
+        senior_count = max(1, int(team_size * senior_ratio))
+        junior_count = int(team_size * junior_ratio)
+        mid_count = team_size - senior_count - junior_count
+        
+        team_composition = {
+            'senior': senior_count,
+            'mid': mid_count, 
+            'junior': junior_count
+        }
+        
+        # Create pipeline and constraint optimizer
+        pipeline = create_standard_pipeline(
+            team_size=team_size,
+            test_automation=test_automation,
+            deployment_frequency=deployment_freq
+        )
+        
+        optimizer = ConstraintOptimizer(pipeline)
+        
+        # Apply Theory of Constraints optimization
+        toc_result = optimizer.optimize_for_constraint(team_composition, cost_per_seat)
+        
+        if toc_result:
+            # Convert ToC result to format expected by display_results
+            return {
+                'adoption': toc_result['optimal_ai_adoption'],
+                'team_composition': team_composition,
+                'actual_throughput': toc_result['final_throughput'],
+                'bottleneck': toc_result['constraint_analysis'].constraint_stage,
+                'monthly_profit': toc_result['net_value_per_day'] * 30,
+                'monthly_cost': toc_result['monthly_cost'],
+                'toc_optimization': True,  # Flag indicating ToC approach used
+                'constraint_analysis': toc_result['constraint_analysis'],
+                'exploitation_result': toc_result['exploitation_result'],
+                'subordination_rules': toc_result['subordination_rules']
+            }
+        else:
+            # Fallback to original approach
+            return find_optimal_adoption_legacy(team_size, cost_per_seat, 
+                                              test_automation, deployment_freq,
+                                              senior_ratio, junior_ratio)
+            
+    except ImportError:
+        # Fallback if ToC modules not available
+        return find_optimal_adoption_legacy(team_size, cost_per_seat,
+                                          test_automation, deployment_freq, 
+                                          senior_ratio, junior_ratio)
+
+
+def find_optimal_adoption_legacy(team_size: int, cost_per_seat: float, 
+                                test_automation: float, deployment_freq: str,
+                                senior_ratio: float = 0.2, junior_ratio: float = 0.4):
+    """
+    Legacy approach: Find the adoption rate that maximizes profit.
+    Kept for fallback compatibility.
     """
     best_result = None
     best_profit = -float('inf')
@@ -181,10 +243,17 @@ def find_optimal_adoption(team_size: int, cost_per_seat: float,
 def display_results(result: dict, team_size: int, cost_per_seat: float,
                    test_automation: float, deployment_freq: str,
                    senior_ratio: float = 0.2, junior_ratio: float = 0.4):
-    """Display optimization results with seniority constraints."""
+    """Display optimization results - Theory of Constraints or legacy approach."""
+    
+    is_toc = result.get('toc_optimization', False)
     
     print(f"\n{CYAN}{'='*70}{RESET}")
-    print(f"{BOLD}PIPELINE VALUE OPTIMIZATION WITH SENIORITY CONSTRAINTS{RESET}")
+    if is_toc:
+        print(f"{BOLD}THEORY OF CONSTRAINTS OPTIMIZATION RESULTS{RESET}")
+        print(f"{CYAN}Constraint-focused approach (not global AI adoption){RESET}")
+    else:
+        print(f"{BOLD}PIPELINE VALUE OPTIMIZATION WITH SENIORITY CONSTRAINTS{RESET}")
+        print(f"{YELLOW}Legacy approach - consider using constraint_analyzer.py for ToC{RESET}")
     print(f"{CYAN}{'='*70}{RESET}\n")
     
     if not result:
@@ -204,87 +273,172 @@ def display_results(result: dict, team_size: int, cost_per_seat: float,
     print(tabulate(team_data, tablefmt='simple'))
     print()
     
-    # Pipeline metrics with seniority constraints
+    # Pipeline metrics - different format for ToC vs legacy
     print(f"{BOLD}Pipeline Throughput (features/month):{RESET}")
-    pipeline = [
-        ["Coding Capacity", f"{result['coding_throughput']:.1f}"],
-        ["Review Capacity", f"{result['review_throughput']:.1f}"],
-        ["  Senior Review Capacity", f"{result['senior_review_capacity']:.0f} PRs/month"],
-        ["  Junior PR Load", f"{result['junior_pr_load']:.0f} PRs/month"],
-        ["  Review Utilization", f"{result['review_utilization']:.1%}"],
-        ["Testing Capacity", f"{result['test_throughput']:.1f}"],
-        ["", ""],
-        ["Actual Throughput", f"{result['actual_throughput']:.1f}"],
-        ["Bottleneck", result['bottleneck'].replace('_', ' ').title()],
-        ["", ""],
-        ["Defects in Production", f"{result['defects_in_production']:.1f}/month"],
-    ]
+    
+    if result.get('toc_optimization', False):
+        # Theory of Constraints format
+        constraint_analysis = result.get('constraint_analysis')
+        pipeline = [
+            ["Constraint Stage", result['bottleneck'].replace('_', ' ').title()],
+            ["Actual Throughput", f"{result['actual_throughput']:.1f}"],
+            ["Constraint Utilization", f"{constraint_analysis.constraint_utilization:.1%}" if constraint_analysis else "N/A"],
+            ["", ""],
+            ["Stage Throughputs:", ""],
+        ]
+        
+        # Add individual stage throughputs if available
+        if constraint_analysis and constraint_analysis.stage_throughputs:
+            for stage, throughput in constraint_analysis.stage_throughputs.items():
+                is_constraint = "🚫 " if stage == result['bottleneck'] else "   "
+                pipeline.append([f"{is_constraint}{stage.replace('_', ' ').title()}", f"{throughput:.1f}"])
+    else:
+        # Legacy format
+        pipeline = [
+            ["Coding Capacity", f"{result.get('coding_throughput', 'N/A')}"],
+            ["Review Capacity", f"{result.get('review_throughput', 'N/A')}"],
+            ["  Senior Review Capacity", f"{result.get('senior_review_capacity', 0):.0f} PRs/month"],
+            ["  Junior PR Load", f"{result.get('junior_pr_load', 0):.0f} PRs/month"],
+            ["  Review Utilization", f"{result.get('review_utilization', 0):.1%}"],
+            ["Testing Capacity", f"{result.get('test_throughput', 'N/A')}"],
+            ["", ""],
+            ["Actual Throughput", f"{result['actual_throughput']:.1f}"],
+            ["Bottleneck", result['bottleneck'].replace('_', ' ').title()],
+            ["", ""],
+            ["Defects in Production", f"{result.get('defects_in_production', 0):.1f}/month"],
+        ]
+    
     print(tabulate(pipeline, tablefmt='simple'))
     print()
     
     # Financial metrics
     print(f"{BOLD}Financial Impact:{RESET}")
+    
+    # Calculate ROI and payback for both formats
+    monthly_profit = result['monthly_profit']
+    monthly_cost = result['monthly_cost']
+    roi = (monthly_profit / monthly_cost * 100) if monthly_cost > 0 else 0
+    payback = monthly_cost / monthly_profit if monthly_profit > 0 else 999
+    
     financial = [
         ["Adoption Rate", f"{result['adoption']:.0f}%"],
         ["", ""],
-        ["Monthly Value", f"${result['monthly_value']:,.0f}"],
-        ["Monthly Cost", f"${result['monthly_cost']:,.0f}"],
-        ["Monthly Profit", f"${result['monthly_profit']:,.0f}"],
+        ["Monthly Value", f"${result.get('monthly_value', result['actual_throughput'] * 10000 * 30):,.0f}"],
+        ["Monthly Cost", f"${monthly_cost:,.0f}"],
+        ["Monthly Profit", f"${monthly_profit:,.0f}"],
         ["", ""],
-        ["ROI", f"{result['roi']:.0f}%"],
-        ["Payback Period", f"{result['payback_months']:.1f} months"],
+        ["ROI", f"{roi:.0f}%"],
+        ["Payback Period", f"{payback:.1f} months"],
     ]
     print(tabulate(financial, tablefmt='simple'))
     print()
     
-    # Seniority-specific insights
-    print(f"{BOLD}Seniority Constraints Analysis:{RESET}")
-    
-    comp = result['team_composition']
-    if comp['junior'] > comp['senior'] * 3:  # Junior-heavy team
-        print(f"⚠️  {YELLOW}Junior-heavy team detected{RESET}")
-        print(f"   → {comp['junior']} juniors vs {comp['senior']} seniors")
-        print("   → Senior review capacity is likely the constraint")
+    # Analysis - different for ToC vs legacy
+    if result.get('toc_optimization', False):
+        print(f"{BOLD}Theory of Constraints Analysis:{RESET}")
         
-    if result['review_utilization'] > 0.8:
-        print(f"⚠️  {RED}Senior review capacity overloaded ({result['review_utilization']:.0%}){RESET}")
-        print(f"   → {comp['junior']} juniors producing {result['junior_pr_load']:.0f} PRs/month")
-        print(f"   → {comp['senior']} seniors can handle {result['senior_review_capacity']:.0f} PRs/month")
-        print("   → CRITICAL: This constrains junior-heavy teams")
+        constraint_analysis = result.get('constraint_analysis')
+        if constraint_analysis:
+            print(f"🎯 Constraint: {constraint_analysis.constraint_stage.replace('_', ' ').title()}")
+            print(f"💡 Improvement potential: {constraint_analysis.improvement_potential:.1%}")
+            print(f"💰 Cost of constraint: ${constraint_analysis.cost_of_constraint:,.0f}/day")
+            
+            if constraint_analysis.queue_buildup:
+                total_queue = sum(constraint_analysis.queue_buildup.values())
+                if total_queue > 0:
+                    print(f"⚠️  Queue buildup: {total_queue:.1f} features waiting")
         
-    print(f"\n{BOLD}Key Bottleneck Insights:{RESET}")
-    
-    if result['bottleneck'] == "code_review":
-        print(f"⚠️  {YELLOW}Code review is limiting throughput{RESET}")
-        if comp['junior'] > comp['senior'] * 2:
-            print("   → JUNIOR TEAM CONSTRAINT: Need more senior review capacity")
-            print(f"   → Consider: Promote mid-level devs, hire seniors, or reduce AI adoption")
-        else:
-            print("   → Increase review capacity or improve review tools")
-        print(f"   → Currently {result['review_throughput']:.1f} vs {result['coding_throughput']:.1f} coding")
-    elif result['bottleneck'] == "testing":
-        print(f"⚠️  {YELLOW}Testing is limiting throughput{RESET}")
-        print("   → Increase test automation or parallel testing")
-        print(f"   → Current automation: {test_automation:.0%}")
-    elif result['bottleneck'] == "deployment":
-        print(f"⚠️  {YELLOW}Deployment frequency is limiting value delivery{RESET}")
-        print(f"   → Current: {deployment_freq} deployments")
-        print("   → Consider more frequent deployments")
-    
-    if result['defects_in_production'] > result['actual_throughput'] * 0.1:
-        print(f"\n⚠️  {YELLOW}High defect rate ({result['defects_in_production']:.1f}/month){RESET}")
-        if comp['junior'] / team_size > 0.5:
-            print("   → Junior-heavy teams need stronger review processes")
-        print("   → Improve testing coverage and code review")
+        exploitation_result = result.get('exploitation_result')
+        if exploitation_result:
+            print(f"\n{BOLD}Exploitation Opportunities:{RESET}")
+            print(f"• Current throughput: {exploitation_result['original_throughput']:.1f}")
+            print(f"• After exploitation: {exploitation_result['exploited_throughput']:.1f}")
+            print(f"• Improvement: {exploitation_result['improvement_percent']:.1f}% at $0 cost")
+    else:
+        # Legacy seniority-specific insights
+        print(f"{BOLD}Seniority Constraints Analysis:{RESET}")
+        
+        comp = result['team_composition']
+        if comp['junior'] > comp['senior'] * 3:  # Junior-heavy team
+            print(f"⚠️  {YELLOW}Junior-heavy team detected{RESET}")
+            print(f"   → {comp['junior']} juniors vs {comp['senior']} seniors")
+            print("   → Senior review capacity is likely the constraint")
+            
+        review_util = result.get('review_utilization', 0)
+        if review_util > 0.8:
+            print(f"⚠️  {RED}Senior review capacity overloaded ({review_util:.0%}){RESET}")
+            print(f"   → {comp['junior']} juniors producing {result.get('junior_pr_load', 0):.0f} PRs/month")
+            print(f"   → {comp['senior']} seniors can handle {result.get('senior_review_capacity', 0):.0f} PRs/month")
+            print("   → CRITICAL: This constrains junior-heavy teams")
+            
+        print(f"\n{BOLD}Key Bottleneck Insights:{RESET}")
+        
+        if result['bottleneck'] == "code_review":
+            print(f"⚠️  {YELLOW}Code review is limiting throughput{RESET}")
+            if comp['junior'] > comp['senior'] * 2:
+                print("   → JUNIOR TEAM CONSTRAINT: Need more senior review capacity")
+                print(f"   → Consider: Promote mid-level devs, hire seniors, or reduce AI adoption")
+            else:
+                print("   → Increase review capacity or improve review tools")
+        elif result['bottleneck'] == "testing":
+            print(f"⚠️  {YELLOW}Testing is limiting throughput{RESET}")
+            print("   → Increase test automation or parallel testing")
+            print(f"   → Current automation: {test_automation:.0%}")
+        elif result['bottleneck'] == "deployment":
+            print(f"⚠️  {YELLOW}Deployment frequency is limiting value delivery{RESET}")
+            print(f"   → Current: {deployment_freq} deployments")
+            print("   → Consider more frequent deployments")
+        
+        defects = result.get('defects_in_production', 0)
+        if defects > result['actual_throughput'] * 0.1:
+            print(f"\n⚠️  {YELLOW}High defect rate ({defects:.1f}/month){RESET}")
+            if comp['junior'] / team_size > 0.5:
+                print("   → Junior-heavy teams need stronger review processes")
+            print("   → Improve testing coverage and code review")
     
     print(f"\n{BOLD}Optimal Strategy:{RESET}")
-    print(f"• Adopt AI tools at {result['adoption']:.0f}% of team")
-    if result['bottleneck'] == "code_review" and comp['junior'] > comp['senior'] * 2:
-        print(f"• ⚠️  CRITICAL: Senior review capacity constrains this junior-heavy team")  
-        print(f"• Consider: Hire seniors, promote mids, or limit AI to {max(20, int(result['adoption']*0.7))}%")
+    
+    if result.get('toc_optimization', False):
+        # Theory of Constraints specific recommendations
+        constraint_analysis = result.get('constraint_analysis')
+        exploitation_result = result.get('exploitation_result')
+        
+        print(f"🎯 {GREEN}Theory of Constraints Approach{RESET}")
+        print(f"• Constraint identified: {constraint_analysis.constraint_stage.replace('_', ' ').title()}")
+        print(f"• Optimal AI adoption: {result['adoption']:.0f}% (constraint-focused, not global max)")
+        
+        if exploitation_result:
+            print(f"• Exploit constraint first: +{exploitation_result['improvement_percent']:.1f}% throughput improvement")
+            print(f"• Implementation cost: ${exploitation_result['cost']:,} (exploit before adding capacity)")
+        
+        print(f"• Focus on constraint throughput: {result['actual_throughput']:.1f} features/month")
+        
+        # Subordination rules
+        subordination_rules = result.get('subordination_rules', [])
+        if subordination_rules:
+            print(f"• Subordination rules active: {len(subordination_rules)} stages supporting constraint")
+        
+        print(f"\n{BOLD}Theory of Constraints Principles Applied:{RESET}")
+        print(f"  1. ✓ Constraint identified: {constraint_analysis.constraint_stage if constraint_analysis else 'N/A'}")
+        print(f"  2. ✓ Exploitation strategies: {len(constraint_analysis.exploitation_strategies) if constraint_analysis else 0} available")
+        print(f"  3. ✓ Subordination: All stages optimized for constraint support")
+        print(f"  4. → Elevation: Next step if exploitation insufficient")
+        print(f"  5. → Repeat: Monitor for constraint movement")
+        
     else:
-        print(f"• Focus on relieving the {result['bottleneck'].replace('_', ' ')} bottleneck")
-    print(f"• Expected monthly profit: ${result['monthly_profit']:,.0f}")
+        # Legacy approach recommendations
+        print(f"• Adopt AI tools at {result['adoption']:.0f}% of team")
+        if result['bottleneck'] == "code_review" and comp['junior'] > comp['senior'] * 2:
+            print(f"• ⚠️  CRITICAL: Senior review capacity constrains this junior-heavy team")  
+            print(f"• Consider: Hire seniors, promote mids, or limit AI to {max(20, int(result['adoption']*0.7))}%")
+        else:
+            print(f"• Focus on relieving the {result['bottleneck'].replace('_', ' ')} bottleneck")
+    
+    print(f"\n• Expected monthly profit: ${result['monthly_profit']:,.0f}")
+    
+    if result.get('toc_optimization', False):
+        print(f"\n{GREEN}💡 ToC Insight: This optimization focuses on system throughput via constraint management,")
+        print(f"   not global AI adoption maximization. More economically sound approach.{RESET}")
 
 
 def main():
@@ -333,8 +487,8 @@ Examples:
     print(f"Test Automation: {args.automation:.0%} | Deploy: {args.deploy}")
     print(f"Team Composition: {args.senior_ratio:.0%} Senior, {mid_ratio:.0%} Mid, {args.junior_ratio:.0%} Junior")
     
-    result = find_optimal_adoption(args.team, args.cost, args.automation, args.deploy,
-                                  args.senior_ratio, args.junior_ratio)
+    result = find_optimal_using_toc(args.team, args.cost, args.automation, args.deploy,
+                                   args.senior_ratio, args.junior_ratio)
     
     display_results(result, args.team, args.cost, args.automation, args.deploy,
                    args.senior_ratio, args.junior_ratio)
