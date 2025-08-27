@@ -19,6 +19,7 @@ class ConstraintType(Enum):
     TIME = "time"
     ROI = "roi"
     CAPACITY = "capacity"
+    SENIOR_CAPACITY = "senior_capacity"
     PIPELINE = "pipeline"
     CUSTOM = "custom"
 
@@ -440,6 +441,81 @@ class BusinessConstraints:
                     "min_automation": 0.1,
                     "max_automation": 0.9,
                     "min_quality": 0.3
+                }
+            )
+        )
+    
+    def add_senior_developer_constraints(self, team_size_var: Any, 
+                                       senior_ratio_var: Any, 
+                                       junior_ratio_var: Any,
+                                       ai_adoption_var: Any,
+                                       throughput_var: Any) -> None:
+        """
+        Add senior developer capacity constraints - the primary bottleneck for junior-heavy teams.
+        
+        Args:
+            team_size_var: Total team size variable
+            senior_ratio_var: Ratio of senior developers (0-1)
+            junior_ratio_var: Ratio of junior developers (0-1) 
+            ai_adoption_var: AI adoption rate (0-1)
+            throughput_var: Team throughput variable
+        """
+        # Calculate senior count (scaled for solver)
+        senior_count = team_size_var * senior_ratio_var
+        junior_count = team_size_var * junior_ratio_var
+        
+        # Senior code review capacity constraint
+        # Each senior can effectively review ~8-12 PRs per week, say 40 per month
+        reviews_per_senior_per_month = 40 * 1000  # Scaled for solver
+        max_review_capacity = senior_count * reviews_per_senior_per_month
+        
+        # Junior developers with AI produce more code that needs review
+        # Base: 8 PRs per junior per month, AI increases this by up to 50%
+        base_prs_per_junior = 8 * 1000  # Scaled for solver
+        ai_code_multiplier = 1000 + ai_adoption_var * 500  # 1.0 to 1.5x multiplier
+        junior_pr_load = junior_count * base_prs_per_junior * ai_code_multiplier / 1000
+        
+        # Review capacity constraint: senior review capacity must handle junior PR load
+        self.solver.add_constraint(
+            junior_pr_load <= max_review_capacity,
+            name="senior_review_capacity"
+        )
+        
+        # Mentoring time constraint  
+        # Each junior needs ~2 hours of mentoring per week, seniors can provide ~8 hours
+        mentoring_hours_per_junior = 8 * 1000  # 8 hours per month, scaled
+        mentoring_hours_per_senior = 32 * 1000  # 32 hours per month available
+        total_mentoring_needed = junior_count * mentoring_hours_per_junior
+        max_mentoring_available = senior_count * mentoring_hours_per_senior
+        
+        self.solver.add_constraint(
+            total_mentoring_needed <= max_mentoring_available,
+            name="senior_mentoring_capacity"
+        )
+        
+        # Architecture decision constraint
+        # Complex decisions require senior involvement, limiting throughput
+        # High junior ratios create more architecture decisions per feature
+        architecture_decisions_per_feature = 100 + junior_ratio_var * 200  # 0.1 to 0.3 per feature
+        senior_architecture_capacity = senior_count * 500  # Each senior handles ~0.5 arch decisions/month
+        max_features_by_architecture = senior_architecture_capacity * 1000 / architecture_decisions_per_feature
+        
+        self.solver.add_constraint(
+            throughput_var <= max_features_by_architecture,
+            name="senior_architecture_bottleneck"
+        )
+        
+        self.constraints.append(
+            ConstraintDefinition(
+                name="senior_developer_constraints",
+                type=ConstraintType.SENIOR_CAPACITY,
+                description="Senior developer time as primary constraint for junior-heavy teams",
+                parameters={
+                    "reviews_per_senior_per_month": reviews_per_senior_per_month / 1000,
+                    "base_prs_per_junior_per_month": base_prs_per_junior / 1000,
+                    "mentoring_hours_per_junior_per_month": mentoring_hours_per_junior / 1000,
+                    "mentoring_hours_per_senior_per_month": mentoring_hours_per_senior / 1000,
+                    "architecture_decisions_scaling": True
                 }
             )
         )

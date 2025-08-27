@@ -198,10 +198,19 @@ class TestingCulture:
     regression_test_discipline: float  # 0-1, how well regression tests maintained
     test_documentation_quality: float  # 0-1, how well tests documented
     
-    # Team dynamics
-    qa_developer_ratio: float = 0.2  # 1 QA per 5 developers
+    # Test automation maturity (replaces manual QA focus)
+    test_automation_maturity: float = 0.7  # 0-1, level of test automation sophistication
+    tdd_adoption: float = 0.3  # 0-1, extent of TDD practice adoption
+    shift_left_maturity: float = 0.5  # 0-1, how early testing happens in pipeline
+    
+    # Legacy QA ratio for backward compatibility (DEPRECATED - will be removed)
+    qa_developer_ratio: float = None  # Auto-calculated from automation maturity
     testing_in_definition_of_done: bool = True
     automated_testing_in_ci: bool = True
+    
+    # Quality responsibility distribution
+    developer_testing_responsibility: float = None  # Auto-calculated based on maturity
+    quality_gate_automation: float = None  # Auto-calculated
     
     def __post_init__(self):
         """Validate culture metrics."""
@@ -209,26 +218,120 @@ class TestingCulture:
         validate_ratio(self.peer_review_thoroughness, "peer_review_thoroughness")
         validate_ratio(self.regression_test_discipline, "regression_test_discipline")
         validate_ratio(self.test_documentation_quality, "test_documentation_quality")
-        validate_ratio(self.qa_developer_ratio, "qa_developer_ratio", max_val=1.0)
+        validate_ratio(self.test_automation_maturity, "test_automation_maturity")
+        validate_ratio(self.tdd_adoption, "tdd_adoption")
+        validate_ratio(self.shift_left_maturity, "shift_left_maturity")
+        
+        # Calculate legacy QA ratio for backward compatibility
+        if self.qa_developer_ratio is None:
+            self.qa_developer_ratio = self._calculate_legacy_qa_ratio()
+        
+        # Calculate derived metrics based on automation maturity
+        if self.developer_testing_responsibility is None:
+            self.developer_testing_responsibility = self._calculate_developer_testing_responsibility()
+        
+        if self.quality_gate_automation is None:
+            self.quality_gate_automation = self._calculate_quality_gate_automation()
+        
+        # Legacy compatibility properties
+        self.developer_testing_load = self.developer_testing_responsibility
+        self.quality_gate_strictness = self.quality_gate_automation
+    
+    def _calculate_legacy_qa_ratio(self) -> float:
+        """Calculate legacy QA ratio for backward compatibility."""
+        # Convert automation maturity to equivalent QA ratio for legacy support
+        # Lower automation maturity implies higher reliance on manual QA
+        return max(0.0, (1.0 - self.test_automation_maturity) * 0.3)
+    
+    def _calculate_developer_testing_responsibility(self) -> float:
+        """Calculate developer testing responsibility based on automation maturity."""
+        # Higher automation maturity means developers spend more focused time on testing
+        # but testing becomes more efficient due to automation
+        base_responsibility = 0.20  # 20% baseline for testing activities
+        
+        # TDD adoption increases developer testing time but improves quality
+        tdd_factor = self.tdd_adoption * 0.15  # Up to 15% more time for TDD
+        
+        # Shift-left practices increase upfront testing time
+        shift_left_factor = self.shift_left_maturity * 0.10  # Up to 10% more for early testing
+        
+        # Automation maturity reduces manual testing overhead
+        automation_efficiency = self.test_automation_maturity * 0.05  # Up to 5% time savings
+        
+        total_responsibility = base_responsibility + tdd_factor + shift_left_factor - automation_efficiency
+        return max(0.15, min(0.40, total_responsibility))  # Cap between 15-40%
+    
+    def _calculate_quality_gate_automation(self) -> float:
+        """Calculate quality gate automation level."""
+        # Quality gates should be automated, not manual
+        base_automation = self.test_automation_maturity * 0.6  # Base from automation maturity
+        
+        # TDD practices improve automated quality gates
+        tdd_boost = self.tdd_adoption * 0.2
+        
+        # Shift-left practices catch issues earlier
+        shift_left_boost = self.shift_left_maturity * 0.15
+        
+        # Testing mindset affects consistency
+        mindset_factor = self.testing_first_mindset * 0.05
+        
+        total_automation = base_automation + tdd_boost + shift_left_boost + mindset_factor
+        return max(0.3, min(0.95, total_automation))  # Cap between 30-95%
     
     def get_quality_multiplier(self, ai_adoption: float) -> float:
-        """Calculate overall quality impact from testing culture."""
+        """Calculate overall quality impact from testing culture and automation."""
+        # Base quality from culture and practices
         base_quality = (
-            self.testing_first_mindset * 0.3 +
-            self.peer_review_thoroughness * 0.3 +
-            self.regression_test_discipline * 0.2 +
-            self.test_documentation_quality * 0.2
+            self.testing_first_mindset * 0.25 +
+            self.peer_review_thoroughness * 0.25 +
+            self.regression_test_discipline * 0.15 +
+            self.test_documentation_quality * 0.10 +
+            self.test_automation_maturity * 0.20 +  # Automation is key
+            self.tdd_adoption * 0.05  # TDD provides quality foundation
         )
         
-        # AI disrupts testing culture
-        ai_disruption = ai_adoption * 0.3  # 30% degradation at full adoption
+        # AI impact depends on automation maturity and practices, NOT manual QA
+        automation_protection = self.test_automation_maturity * 0.3
+        tdd_protection = self.tdd_adoption * 0.2  # TDD helps catch AI mistakes
+        shift_left_protection = self.shift_left_maturity * 0.1  # Early detection
         
-        # QA involvement helps
-        qa_mitigation = self.qa_developer_ratio * 0.5
+        # AI disruption is mitigated by good practices, not manual QA
+        ai_disruption = ai_adoption * (0.3 - automation_protection - tdd_protection - shift_left_protection)
+        ai_disruption = max(0.05, ai_disruption)  # Always some disruption
         
-        quality_multiplier = base_quality * (1 - ai_disruption + qa_mitigation)
+        # Developer responsibility factor - higher responsibility can mean better ownership
+        responsibility_factor = 1 + (self.developer_testing_responsibility - 0.20) * 0.5
         
-        return max(0.3, min(1.5, quality_multiplier))
+        quality_multiplier = base_quality * (1 - ai_disruption) * responsibility_factor
+        
+        return max(0.3, min(1.3, quality_multiplier))
+    
+    def get_ai_testing_value(self, ai_adoption: float) -> float:
+        """Calculate the value AI provides for testing based on automation maturity."""
+        # Base AI testing value depends on current automation gaps
+        automation_gap = 1.0 - self.test_automation_maturity
+        base_value = 0.4 + (automation_gap * 0.4)  # Higher value where automation is lacking
+        
+        # TDD teams get more value from AI test generation
+        tdd_boost = self.tdd_adoption * 0.2
+        
+        # Testing-first mindset improves AI test utilization
+        mindset_boost = self.testing_first_mindset * 0.1
+        
+        # Shift-left maturity affects how well AI tests are integrated
+        integration_factor = self.shift_left_maturity * 0.1
+        
+        # Developer testing responsibility affects AI test value
+        responsibility_factor = self.developer_testing_responsibility * 0.5
+        
+        total_value = base_value + tdd_boost + mindset_boost + integration_factor + responsibility_factor
+        
+        # Risk of over-reliance - higher for teams with lower automation maturity
+        over_reliance_risk = ai_adoption * (0.2 + automation_gap * 0.2)
+        
+        ai_testing_value = total_value * (1 - over_reliance_risk)
+        
+        return max(0.2, min(1.0, ai_testing_value))
 
 
 @dataclass
@@ -298,55 +401,61 @@ class CompleteTestStrategy:
 
 
 def create_basic_test_strategy(team_type: str = "balanced") -> CompleteTestStrategy:
-    """Create a basic test strategy based on team type."""
+    """Create a basic test strategy based on team automation maturity and practices."""
     
-    if team_type == "startup":
-        # Startups: Fast, less formal, more manual
+    if team_type == "startup" or team_type == "startup_no_qa":
+        # Early-stage teams: Low automation maturity, limited TDD adoption
+        # Modern approach: Focus on automation rather than manual QA
         pyramid = TestPyramid(
             unit_percentage=0.60,
             integration_percentage=0.25,
             e2e_percentage=0.15
         )
         automation = TestAutomation(
-            coverage_target=0.70,
-            current_coverage=0.50,
-            automation_percentage=0.30,
-            manual_test_time=2.0,
-            automated_test_time=0.1,
-            maintenance_overhead=0.15
+            coverage_target=0.65,
+            current_coverage=0.45,
+            automation_percentage=0.40,  # Focus on building automation
+            manual_test_time=2.5,
+            automated_test_time=0.12,
+            maintenance_overhead=0.18
         )
-        tdd = None  # No TDD
+        tdd = TDDStrategy(adoption_percentage=0.10)  # Some TDD adoption
         culture = TestingCulture(
             testing_first_mindset=0.4,
-            peer_review_thoroughness=0.5,
+            peer_review_thoroughness=0.6,  # Peer review is primary quality gate
             regression_test_discipline=0.4,
             test_documentation_quality=0.3,
-            qa_developer_ratio=0.1
+            test_automation_maturity=0.3,  # Low automation maturity
+            tdd_adoption=0.1,
+            shift_left_maturity=0.2
         )
-        approaches = [TestingApproach.MANUAL, TestingApproach.EXPLORATORY]
+        approaches = [TestingApproach.AUTOMATED, TestingApproach.EXPLORATORY]
         
     elif team_type == "enterprise":
-        # Enterprise: Formal, high automation, comprehensive
+        # Enterprise: High automation maturity, comprehensive TDD adoption
+        # Focus on mature practices rather than manual QA processes
         pyramid = TestPyramid(
             unit_percentage=0.70,
             integration_percentage=0.20,
             e2e_percentage=0.10
         )
         automation = TestAutomation(
-            coverage_target=0.90,
-            current_coverage=0.80,
-            automation_percentage=0.80,
-            manual_test_time=4.0,
+            coverage_target=0.85,
+            current_coverage=0.78,
+            automation_percentage=0.85,  # High automation
+            manual_test_time=3.0,  # Less manual testing
             automated_test_time=0.05,
-            maintenance_overhead=0.25
+            maintenance_overhead=0.20  # Better tooling reduces overhead
         )
-        tdd = TDDStrategy(adoption_percentage=0.30)
+        tdd = TDDStrategy(adoption_percentage=0.40)  # Higher TDD adoption
         culture = TestingCulture(
-            testing_first_mindset=0.7,
+            testing_first_mindset=0.8,  # Strong testing culture
             peer_review_thoroughness=0.8,
             regression_test_discipline=0.8,
             test_documentation_quality=0.7,
-            qa_developer_ratio=0.25
+            test_automation_maturity=0.8,  # High automation maturity
+            tdd_adoption=0.4,
+            shift_left_maturity=0.7  # Strong shift-left practices
         )
         approaches = [
             TestingApproach.AUTOMATED,
@@ -356,28 +465,30 @@ def create_basic_test_strategy(team_type: str = "balanced") -> CompleteTestStrat
         ]
         
     else:  # balanced
+        # Balanced teams: Moderate automation maturity, growing TDD adoption
         pyramid = TestPyramid()  # Use defaults
         automation = TestAutomation(
-            coverage_target=0.80,
-            current_coverage=0.65,
-            automation_percentage=0.50,
-            manual_test_time=3.0,
+            coverage_target=0.75,
+            current_coverage=0.62,
+            automation_percentage=0.60,  # Moderate automation
+            manual_test_time=2.8,
             automated_test_time=0.08,
-            maintenance_overhead=0.20
+            maintenance_overhead=0.18
         )
-        tdd = TDDStrategy(adoption_percentage=0.20)
+        tdd = TDDStrategy(adoption_percentage=0.25)
         culture = TestingCulture(
             testing_first_mindset=0.6,
             peer_review_thoroughness=0.7,
             regression_test_discipline=0.6,
             test_documentation_quality=0.5,
-            qa_developer_ratio=0.15
+            test_automation_maturity=0.6,  # Moderate automation maturity
+            tdd_adoption=0.25,
+            shift_left_maturity=0.4
         )
         approaches = [
             TestingApproach.AUTOMATED,
-            TestingApproach.MANUAL,
             TestingApproach.TDD
-        ]
+        ]  # Remove manual as primary approach
     
     return CompleteTestStrategy(
         pyramid=pyramid,
